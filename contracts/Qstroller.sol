@@ -67,38 +67,10 @@ contract Qstroller is Comptroller {
             EIP20Interface comp = EIP20Interface(compAddress);
             uint compRemaining = comp.balanceOf(address(this));
             if (userAccrued <= compRemaining) {
-                (uint userAmount, uint governanceAmount) = qsConfig.getCompAllocation(user, userAccrued);
-                if (userAmount > 0) comp.transfer(user, userAmount);
-                if (governanceAmount > 0) comp.transfer(qsConfig.safetyVault(), governanceAmount);
+                comp.transfer(user, userAccrued);
                 return 0;
             }
         }
         return userAccrued;
-    }
-
-    /**
-     * @notice Checks if the account should be allowed to mint tokens in the given market
-     * @param cToken The market to verify the mint against
-     * @param minter The account which would get the minted tokens
-     * @param mintAmount The amount of underlying being supplied to the market in exchange for tokens
-     * @return 0 if the mint is allowed, otherwise a semi-opaque error code (See ErrorReporter.sol)
-     */
-    function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint) {
-        require(!qsConfig.isBlocked(minter), "Minter not allowed");
-        // Pausing is a very serious situation - we revert to sound the alarms
-        require(!mintGuardianPaused[cToken], "mint is paused");
-
-        // Shh - currently unused
-        minter;
-        mintAmount;
-
-        if (!markets[cToken].isListed) {
-            return uint(Error.MARKET_NOT_LISTED);
-        }
-
-        // Keep the flywheel moving
-        updateCompSupplyIndex(cToken);
-        distributeSupplierComp(cToken, minter, false);
-        return uint(Error.NO_ERROR);
     }
 }
