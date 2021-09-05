@@ -3108,31 +3108,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
 
     /*** Policy Hooks ***/
 
-    /**
-     * @notice Checks if the account should be allowed to mint tokens in the given market
-     * @param cToken The market to verify the mint against
-     * @param minter The account which would get the minted tokens
-     * @param mintAmount The amount of underlying being supplied to the market in exchange for tokens
-     * @return 0 if the mint is allowed, otherwise a semi-opaque error code (See ErrorReporter.sol)
-     */
-    function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint) {
-        // Pausing is a very serious situation - we revert to sound the alarms
-        require(!mintGuardianPaused[cToken], "mint is paused");
 
-        // Shh - currently unused
-        minter;
-        mintAmount;
-
-        if (!markets[cToken].isListed) {
-            return uint(Error.MARKET_NOT_LISTED);
-        }
-
-        // Keep the flywheel moving
-        updateCompSupplyIndex(cToken);
-        distributeSupplierComp(cToken, minter, false);
-
-        return uint(Error.NO_ERROR);
-    }
 
     /**
      * @notice Validates mint and reverts on rejection. May emit logs.
@@ -3978,88 +3954,16 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
     /*** Comp Distribution ***/
 
     /**
-     * @notice Recalculate and update COMP speeds for all COMP markets
-     */
-    function refreshCompSpeeds() public {
-        require(msg.sender == tx.origin, "only externally owned accounts may refresh speeds");
-        refreshCompSpeedsInternal();
-    }
-
-    function refreshCompSpeedsInternal() internal {
-        CToken[] memory allMarkets_ = allMarkets;
-
-        for (uint i = 0; i < allMarkets_.length; i++) {
-            CToken cToken = allMarkets_[i];
-            Exp memory borrowIndex = Exp({mantissa: cToken.borrowIndex()});
-            updateCompSupplyIndex(address(cToken));
-            updateCompBorrowIndex(address(cToken), borrowIndex);
-        }
-
-        Exp memory totalUtility = Exp({mantissa: 0});
-        Exp[] memory utilities = new Exp[](allMarkets_.length);
-        for (uint i = 0; i < allMarkets_.length; i++) {
-            CToken cToken = allMarkets_[i];
-            if (markets[address(cToken)].isComped) {
-                Exp memory assetPrice = Exp({mantissa: oracle.getUnderlyingPrice(cToken)});
-                Exp memory utility = mul_(assetPrice, cToken.totalBorrows());
-                utilities[i] = utility;
-                totalUtility = add_(totalUtility, utility);
-            }
-        }
-
-        for (uint i = 0; i < allMarkets_.length; i++) {
-            CToken cToken = allMarkets[i];
-            uint newSpeed = totalUtility.mantissa > 0 ? mul_(compRate, div_(utilities[i], totalUtility)) : 0;
-            compSpeeds[address(cToken)] = newSpeed;
-            emit CompSpeedUpdated(cToken, newSpeed);
-        }
-    }
-
-    /**
      * @notice Accrue COMP to the market by updating the supply index
      * @param cToken The market whose supply index to update
      */
-    function updateCompSupplyIndex(address cToken) internal {
-        CompMarketState storage supplyState = compSupplyState[cToken];
-        uint supplySpeed = compSpeeds[cToken];
-        uint blockNumber = getBlockNumber();
-        uint deltaBlocks = sub_(blockNumber, uint(supplyState.block));
-        if (deltaBlocks > 0 && supplySpeed > 0) {
-            uint supplyTokens = CToken(cToken).totalSupply();
-            uint compAccrued = mul_(deltaBlocks, supplySpeed);
-            Double memory ratio = supplyTokens > 0 ? fraction(compAccrued, supplyTokens) : Double({mantissa: 0});
-            Double memory index = add_(Double({mantissa: supplyState.index}), ratio);
-            compSupplyState[cToken] = CompMarketState({
-                index: safe224(index.mantissa, "new index exceeds 224 bits"),
-                block: safe32(blockNumber, "block number exceeds 32 bits")
-            });
-        } else if (deltaBlocks > 0) {
-            supplyState.block = safe32(blockNumber, "block number exceeds 32 bits");
-        }
-    }
+    function updateCompSupplyIndex(address cToken) internal;
 
     /**
      * @notice Accrue COMP to the market by updating the borrow index
      * @param cToken The market whose borrow index to update
      */
-    function updateCompBorrowIndex(address cToken, Exp memory marketBorrowIndex) internal {
-        CompMarketState storage borrowState = compBorrowState[cToken];
-        uint borrowSpeed = compSpeeds[cToken];
-        uint blockNumber = getBlockNumber();
-        uint deltaBlocks = sub_(blockNumber, uint(borrowState.block));
-        if (deltaBlocks > 0 && borrowSpeed > 0) {
-            uint borrowAmount = div_(CToken(cToken).totalBorrows(), marketBorrowIndex);
-            uint compAccrued = mul_(deltaBlocks, borrowSpeed);
-            Double memory ratio = borrowAmount > 0 ? fraction(compAccrued, borrowAmount) : Double({mantissa: 0});
-            Double memory index = add_(Double({mantissa: borrowState.index}), ratio);
-            compBorrowState[cToken] = CompMarketState({
-                index: safe224(index.mantissa, "new index exceeds 224 bits"),
-                block: safe32(blockNumber, "block number exceeds 32 bits")
-            });
-        } else if (deltaBlocks > 0) {
-            borrowState.block = safe32(blockNumber, "block number exceeds 32 bits");
-        }
-    }
+    function updateCompBorrowIndex(address cToken, Exp memory marketBorrowIndex) internal;
 
     /**
      * @notice Calculate COMP accrued by a supplier and possibly transfer it to them
@@ -4175,34 +4079,6 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
 
     /*** Comp Distribution Admin ***/
 
-    /**
-     * @notice Set the amount of COMP distributed per block
-     * @param compRate_ The amount of COMP wei per block to distribute
-     */
-    function _setCompRate(uint compRate_) public {
-        require(adminOrInitializing(), "only admin can change comp rate");
-
-        uint oldRate = compRate;
-        compRate = compRate_;
-        emit NewCompRate(oldRate, compRate_);
-
-        refreshCompSpeedsInternal();
-    }
-
-    /**
-     * @notice Add markets to compMarkets, allowing them to earn COMP in the flywheel
-     * @param cTokens The addresses of the markets to add
-     */
-    function _addCompMarkets(address[] memory cTokens) public {
-        require(adminOrInitializing(), "only admin can add comp market");
-
-        for (uint i = 0; i < cTokens.length; i++) {
-            _addCompMarketInternal(cTokens[i]);
-        }
-
-        refreshCompSpeedsInternal();
-    }
-
     function _addCompMarketInternal(address cToken) internal {
         Market storage market = markets[cToken];
         require(market.isListed == true, "comp market is not listed");
@@ -4227,22 +4103,6 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
     }
 
     /**
-     * @notice Remove a market from compMarkets, preventing it from earning COMP in the flywheel
-     * @param cToken The address of the market to drop
-     */
-    function _dropCompMarket(address cToken) public {
-        require(msg.sender == admin, "only admin can drop comp market");
-
-        Market storage market = markets[cToken];
-        require(market.isComped == true, "market is not a comp market");
-
-        market.isComped = false;
-        emit MarketComped(CToken(cToken), false);
-
-        refreshCompSpeedsInternal();
-    }
-
-    /**
      * @notice Return all of the markets
      * @dev The automatic getter may be used to access an individual market.
      * @return The list of market addresses
@@ -4259,9 +4119,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
      * @notice Return the address of the COMP token
      * @return The address of COMP
      */
-    function getCompAddress() public view returns (address) {
-        return 0xc00e94Cb662C3520282E6f5717214004A7f26888;
-    }
+    function getCompAddress() public view returns (address);
 }
 
 // File: contracts/Ownable.sol
@@ -4312,9 +4170,25 @@ contract QsConfig is Ownable, Exponential {
     uint public safetyVaultRatio;
     address public safetyVault;
 
+    uint public compRatio = 0.5e18;
+    mapping(address => bool) public whitelist;
+    mapping(address => bool) public blacklist;
+
     event NewCompToken(address oldCompToken, address newCompToken);
     event NewSafetyVault(address oldSafetyVault, address newSafetyVault);
     event NewSafetyVaultRatio(uint oldSafetyVaultRatio, uint newSafetyVault);
+
+    event NewCompRatio(uint oldCompRatio, uint newCompRatio);
+    event WhitelistChange(address user, bool enabled);
+    event BlacklistChange(address user, bool enabled);
+
+    constructor(QsConfig previousQsConfig) public {
+        if (address(previousQsConfig) == address(0x0)) return;
+
+        compToken = previousQsConfig.compToken();
+        safetyVaultRatio = previousQsConfig.safetyVaultRatio();
+        safetyVault = previousQsConfig.safetyVault();
+    }
 
     function _setCompToken(address _compToken) public onlyOwner {
         address oldCompToken = compToken;
@@ -4345,6 +4219,67 @@ contract QsConfig is Ownable, Exponential {
         safetyVaultAmount = div_(tmp, liquidationIncentiveMantissa).mantissa;
         liquidatorAmount = sub_(_seizeTokenAmount, safetyVaultAmount);
     }
+
+    function getCompAllocation(address user, uint userAccrued) public view returns(uint userAmount, uint governanceAmount) {
+        if (!isContract(user) || whitelist[user]) {
+            return (userAccrued, 0);
+        }
+
+        Exp memory compRatioExp = Exp({mantissa:compRatio});
+        (, userAmount) = mulScalarTruncate(compRatioExp, userAccrued);
+        governanceAmount = sub_(userAccrued, userAmount);
+    }
+
+    function _setCompRatio(uint _compRatio) public onlyOwner {
+        require(_compRatio < 1e18, "compRatio should be less then 100%");
+        uint oldCompRatio = compRatio;
+        compRatio = _compRatio;
+
+        emit NewCompRatio(oldCompRatio, compRatio);
+    }
+
+    function isBlocked(address user) public view returns (bool) {
+        return blacklist[user];
+    }
+
+    function _addToWhitelist(address _member) public onlyOwner {
+        require(_member != address(0x0), "Zero address is not allowed");
+        whitelist[_member] = true;
+
+        emit WhitelistChange(_member, true);
+    }
+
+    function _removeFromWhitelist(address _member) public onlyOwner {
+        require(_member != address(0x0), "Zero address is not allowed");
+        whitelist[_member] = false;
+
+        emit WhitelistChange(_member, false);
+    }
+
+    function _addToBlacklist(address _member) public onlyOwner {
+        require(_member != address(0x0), "Zero address is not allowed");
+        blacklist[_member] = true;
+
+        emit BlacklistChange(_member, true);
+    }
+
+    function _removeFromBlacklist(address _member) public onlyOwner {
+        require(_member != address(0x0), "Zero address is not allowed");
+        blacklist[_member] = false;
+
+        emit BlacklistChange(_member, false);
+    }
+
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
+        // construction, since the code is only stored at the end of the
+        // constructor execution.
+
+        uint256 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { size := extcodesize(account) }
+        return size > 0;
+    }
 }
 
 // File: contracts/Qstroller.sol
@@ -4358,7 +4293,7 @@ contract Qstroller is Comptroller {
     QsConfig public qsConfig;
 
     function _setQsConfig(QsConfig _qsConfig) public {
-        require(msg.sender == admin, "Only admin can set quick silver configuration data.");
+        require(msg.sender == admin);
 
         qsConfig = _qsConfig;
     }
@@ -4369,10 +4304,9 @@ contract Qstroller is Comptroller {
      */
     function _setCompSpeeds(address[] memory _allMarkets, uint[] memory _compSpeeds) public {
         // Check caller is admin
-        require(msg.sender == admin, "Only admin can update token distribution");
+        require(msg.sender == admin);
         
-        require(_allMarkets.length == _compSpeeds.length, "Incomplete parameter");
-        require(allMarkets.length == _allMarkets.length, "Must update token distribution within one transaction");
+        require(_allMarkets.length == _compSpeeds.length);
 
         uint _compRate = 0;
         for (uint i = 0; i < _allMarkets.length; i++) {
@@ -4382,25 +4316,12 @@ contract Qstroller is Comptroller {
                 _addCompMarketInternal(cToken);
             }
             compSpeeds[cToken] = _compSpeeds[i];
-            _compRate = add_(_compRate, _compSpeeds[i]);
+            uint supplySpeed = _compSpeeds[i] >> 128;
+            uint borrowSpeed = uint128(_compSpeeds[i]);
+            uint compSpeed = add_(supplySpeed, borrowSpeed);
+            _compRate = add_(_compRate, compSpeed);
         }
-        _setCompRate(_compRate);
-    }
-
-
-    function refreshCompSpeeds() public {
-        require(!qsConfig.compSpeedGuardianPaused(), "compSpeed is paused");
-        require(msg.sender == tx.origin, "only externally owned accounts may refresh speeds");
-
-        refreshCompSpeedsInternal();
-    }
-
-    function refreshCompSpeedsInternal() internal {
-        if (qsConfig.compSpeedGuardianPaused()) {
-            return;
-        } else {
-            super.refreshCompSpeedsInternal();
-        }
+        compRate = _compRate;
     }
 
     function getCompAddress() public view returns (address) {
@@ -4417,11 +4338,88 @@ contract Qstroller is Comptroller {
             EIP20Interface comp = EIP20Interface(compAddress);
             uint compRemaining = comp.balanceOf(address(this));
             if (userAccrued <= compRemaining) {
-                comp.transfer(user, userAccrued);
+                (uint userAmount, uint governanceAmount) = qsConfig.getCompAllocation(user, userAccrued);
+                if (userAmount > 0) comp.transfer(user, userAmount);
+                if (governanceAmount > 0) comp.transfer(qsConfig.safetyVault(), governanceAmount);
                 return 0;
             }
         }
         return userAccrued;
+    }
+
+    /**
+     * @notice Checks if the account should be allowed to mint tokens in the given market
+     * @param cToken The market to verify the mint against
+     * @param minter The account which would get the minted tokens
+     * @param mintAmount The amount of underlying being supplied to the market in exchange for tokens
+     * @return 0 if the mint is allowed, otherwise a semi-opaque error code (See ErrorReporter.sol)
+     */
+    function mintAllowed(address cToken, address minter, uint mintAmount) external returns (uint) {
+        require(!qsConfig.isBlocked(minter));
+        // Pausing is a very serious situation - we revert to sound the alarms
+        require(!mintGuardianPaused[cToken]);
+
+        // Shh - currently unused
+        minter;
+        mintAmount;
+
+        if (!markets[cToken].isListed) {
+            return uint(Error.MARKET_NOT_LISTED);
+        }
+
+        // Keep the flywheel moving
+        updateCompSupplyIndex(cToken);
+        distributeSupplierComp(cToken, minter, false);
+        return uint(Error.NO_ERROR);
+    }
+
+    /**
+  * @notice Accrue COMP to the market by updating the supply index
+  * @param cToken The market whose supply index to update
+  */
+    function updateCompSupplyIndex(address cToken) internal {
+        CompMarketState storage supplyState = compSupplyState[cToken];
+        uint supplySpeed = compSpeeds[cToken];
+        // use first 128 bit as supplySpeed
+        supplySpeed = supplySpeed >> 128 == 0 ? supplySpeed : supplySpeed >> 128;
+        uint blockNumber = getBlockNumber();
+        uint deltaBlocks = sub_(blockNumber, uint(supplyState.block));
+        if (deltaBlocks > 0 && supplySpeed > 0) {
+            uint supplyTokens = CToken(cToken).totalSupply();
+            uint compAccrued = mul_(deltaBlocks, supplySpeed);
+            Double memory ratio = supplyTokens > 0 ? fraction(compAccrued, supplyTokens) : Double({mantissa: 0});
+            Double memory index = add_(Double({mantissa: supplyState.index}), ratio);
+            compSupplyState[cToken] = CompMarketState({
+            index: safe224(index.mantissa, "index > 224bits"),
+            block: safe32(blockNumber, "blockNumber > 32bits")
+            });
+        } else if (deltaBlocks > 0 && supplyState.index > 0) {
+            supplyState.block = safe32(blockNumber, "blockNumber > 32bits");
+        }
+    }
+
+    /**
+     * @notice Accrue COMP to the market by updating the borrow index
+     * @param cToken The market whose borrow index to update
+     */
+    function updateCompBorrowIndex(address cToken, Exp memory marketBorrowIndex) internal {
+        CompMarketState storage borrowState = compBorrowState[cToken];
+        // use last 128 bit as borrowSpeed
+        uint borrowSpeed = uint128(compSpeeds[cToken]);
+        uint blockNumber = getBlockNumber();
+        uint deltaBlocks = sub_(blockNumber, uint(borrowState.block));
+        if (deltaBlocks > 0 && borrowSpeed > 0) {
+            uint borrowAmount = div_(CToken(cToken).totalBorrows(), marketBorrowIndex);
+            uint compAccrued = mul_(deltaBlocks, borrowSpeed);
+            Double memory ratio = borrowAmount > 0 ? fraction(compAccrued, borrowAmount) : Double({mantissa: 0});
+            Double memory index = add_(Double({mantissa: borrowState.index}), ratio);
+            compBorrowState[cToken] = CompMarketState({
+            index: safe224(index.mantissa, "index > 224bits"),
+            block: safe32(blockNumber, "blockNumber > 32bits")
+            });
+        } else if (deltaBlocks > 0 && borrowState.index > 0) {
+            borrowState.block = safe32(blockNumber, "blockNumber > 32bits");
+        }
     }
 }
 

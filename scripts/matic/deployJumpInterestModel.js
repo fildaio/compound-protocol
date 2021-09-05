@@ -1,17 +1,17 @@
-const JumpInterestModel = artifacts.require("HecoJumpInterestModel");
+const MaticInterestModel = artifacts.require("MaticJumpInterestModel");
 const CToken = artifacts.require("CToken");
 const Qstroller = artifacts.require("Qstroller");
 const Unitroller = artifacts.require("Unitroller");
 
 const baseRatePerYear = 0.03e18.toString();
-const multiplierPerYear = 0.3e18.toString();
-const jumpMultiplierPerYear = 5e18.toString();
-const kink = 0.95e18.toString();
-const reserveFactor = 0.2e18.toString();
+const multiplierPerYear = 0.35e18.toString();
+const jumpMultiplierPerYear = 4e18.toString();
+const kink = 0.9e18.toString();
+const reserveFactor = 0.15e18.toString();
 
 module.exports = async function(callback) {
     try {
-        let newInterestModel = await JumpInterestModel.new(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
+        let newInterestModel = await MaticInterestModel.new(baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
         //let allSupportedMarkets = ["0xB16Df14C53C4bcfF220F4314ebCe70183dD804c0","0xAab0C9561D5703e84867670Ac78f6b5b4b40A7c1"]
         let unitrollerInstance = await Unitroller.deployed();
         let proxiedQstroller = await Qstroller.at(unitrollerInstance.address);
