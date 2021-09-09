@@ -263,6 +263,19 @@ contract QsMdxLPDelegate is CErc20Delegate {
         require(token.transfer(to, amount), "unexpected EIP-20 transfer out return");
     }
 
+    function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
+        claimAndStakeMdx();
+
+        updateLPSupplyIndex();
+        updateSupplierIndex(liquidator);
+        updateSupplierIndex(borrower);
+
+        address safetyVault = Qstroller(address(comptroller)).qsConfig().safetyVault();
+        updateSupplierIndex(safetyVault);
+
+        return super.seizeInternal(seizerToken, liquidator, borrower, seizeTokens);
+    }
+
     /*** Internal functions ***/
 
     function claimAndStakeMdx() internal {
