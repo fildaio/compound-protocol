@@ -17,8 +17,8 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
     ChainlinkAggregatorV3Interface public token0Source;
     ChainlinkAggregatorV3Interface public token1Source;
 
-    uint private half0Decimals;
-    uint private half1Decimals;
+    uint private p0Decimals;
+    uint private p1Decimals;
 
     struct RoundData {
         uint80 roundId;
@@ -44,8 +44,8 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
         token1Source = ChainlinkAggregatorV3Interface(_token1ChanlinkSource);
         pair = _pair;
 
-        half0Decimals = token0Source.decimals().div(2);
-        half1Decimals = token1Source.decimals().div(2);
+        p0Decimals = token0Source.decimals();
+        p1Decimals = token1Source.decimals();
     }
 
     function decimals() external view returns (uint8) {
@@ -84,7 +84,7 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
         // fair token1 amt: sqrtK * sqrt(px0/px1)
         // fair lp price = 2 * sqrt(px0 * px1)
         // split into 2 sqrts multiplication to prevent uint overflow
-        answer = int256(sqrtK.mul(2).mul(sqrt(uint(data.answer))).div(10 ** uint(half0Decimals)).mul(sqrt(uint(px1))).div(10 ** uint(half1Decimals)));
+        answer = int256(sqrtK.mul(2).mul(sqrt(uint(data.answer))).div(sqrt(10 ** p0Decimals)).mul(sqrt(uint(px1))).div(sqrt(10 ** p1Decimals)));
         roundId = data.roundId;
         startedAt = data.startedAt;
         updatedAt = data.updatedAt;
@@ -127,13 +127,13 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
     function setChainlinkSource(address _token0ChanlinkSource, address _token1ChanlinkSource) external onlyOwner {
         if (_token0ChanlinkSource != address(0)) {
             token0Source = ChainlinkAggregatorV3Interface(_token0ChanlinkSource);
-            half0Decimals = token0Source.decimals().div(2);
+            p0Decimals = token0Source.decimals();
             emit ChainlinkSourceChanged(0, _token0ChanlinkSource);
         }
 
         if (_token1ChanlinkSource != address(0)) {
             token1Source = ChainlinkAggregatorV3Interface(_token1ChanlinkSource);
-            half1Decimals = token1Source.decimals().div(2);
+            p1Decimals = token1Source.decimals();
             emit ChainlinkSourceChanged(1, _token1ChanlinkSource);
         }
     }
