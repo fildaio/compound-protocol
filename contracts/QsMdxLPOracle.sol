@@ -4,9 +4,8 @@ import "./ChainlinkAggregatorV3Interface.sol";
 import "./IUniswapV2Pair.sol";
 import "./compound/SafeMath.sol";
 import "./compound/EIP20Interface.sol";
-import "./Ownable.sol";
 
-contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
+contract QsMdxLPOracle is ChainlinkAggregatorV3Interface {
     using SafeMath for uint;
     using SafeMath for uint8;
 
@@ -27,10 +26,6 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
         uint256 updatedAt;
         uint80 answeredInRound;
     }
-
-    event ChainlinkSourceChanged(
-        uint index,
-        address newSource);
 
     constructor(
         uint8 _decimals,
@@ -74,8 +69,6 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
         RoundData memory data;
         uint totalSupply = IUniswapV2Pair(pair).totalSupply();
         (uint r0, uint r1, ) = IUniswapV2Pair(pair).getReserves();
-        require(r0 != 0 && r1 != 0, "QsMdxLPOracle: bad reserve");
-
         uint sqrtK = sqrt(r0.mul(r1)).mul(10 ** uint(decimals_)).div(totalSupply);
         (data.roundId, data.answer, data.startedAt, data.updatedAt, data.answeredInRound) =
                 getTokenPrice(IUniswapV2Pair(pair).token0(), token0Source);
@@ -115,7 +108,6 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
 
         RoundData memory data;
         (data.roundId, data.answer, data.startedAt, data.updatedAt, data.answeredInRound) = tokenSource.latestRoundData();
-        require(data.answer > 0, "QsMdxLPOracle: bad token price");
 
         answer = int256(uint(data.answer).mul(10 ** lpDecimals).div(10 ** tokenDecimals));
         roundId = data.roundId;
@@ -123,7 +115,6 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
         updatedAt = data.updatedAt;
         answeredInRound = data.answeredInRound;
     }
-
 
     function setChainlinkSource(address _token0ChanlinkSource, address _token1ChanlinkSource) external onlyOwner {
         if (_token0ChanlinkSource != address(0)) {
@@ -138,7 +129,6 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
             emit ChainlinkSourceChanged(1, _token1ChanlinkSource);
         }
     }
-
 
     // implementation from https://github.com/Uniswap/uniswap-lib/commit/99f3f28770640ba1bb1ff460ac7c5292fb8291a0
     // original implementation: https://github.com/abdk-consulting/abdk-libraries-solidity/blob/master/ABDKMath64x64.sol#L687

@@ -1,3 +1,192 @@
+// File: contracts/compound/SafeMath.sol
+
+pragma solidity ^0.5.16;
+
+// From https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/Math.sol
+// Subject to the MIT license.
+
+/**
+ * @dev Wrappers over Solidity's arithmetic operations with added overflow
+ * checks.
+ *
+ * Arithmetic operations in Solidity wrap on overflow. This can easily result
+ * in bugs, because programmers usually assume that an overflow raises an
+ * error, which is the standard behavior in high level programming languages.
+ * `SafeMath` restores this intuition by reverting the transaction when an
+ * operation overflows.
+ *
+ * Using this library instead of the unchecked operations eliminates an entire
+ * class of bugs, so it's recommended to use it always.
+ */
+library SafeMath {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting with custom message on overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, errorMessage);
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on underflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot underflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction underflow");
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on underflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot underflow.
+     */
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, errorMessage);
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers.
+     * Reverts on division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers.
+     * Reverts with custom message on division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        // Solidity only automatically asserts when dividing by 0
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts with custom message when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
 // File: contracts/compound/ComptrollerInterface.sol
 
 pragma solidity ^0.5.16;
@@ -4780,204 +4969,38 @@ contract CErc20 is SToken, CErc20Interface {
     }
 }
 
-// File: contracts/IPriceCollector.sol
+// File: contracts/ChainlinkAggregatorV3Interface.sol
 
 pragma solidity ^0.5.16;
 
-contract IPriceCollector {
-    function setDirectPrice(address[] memory asset, uint[] memory price) public;
+contract ChainlinkAggregatorV3Interface {
+    function decimals() external view returns (uint8);
+    function description() external view returns (string memory);
+    function version() external view returns (uint256);
+
+    function getRoundData(uint80 _roundId) external
+    view
+    returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+    function latestRoundData()
+    external
+    view
+    returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+
 }
 
-// File: contracts/compound/SafeMath.sol
-
-pragma solidity ^0.5.16;
-
-// From https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/Math.sol
-// Subject to the MIT license.
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting with custom message on overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, errorMessage);
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on underflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     * - Subtraction cannot underflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction underflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on underflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     * - Subtraction cannot underflow.
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, errorMessage);
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers.
-     * Reverts on division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers.
-     * Reverts with custom message on division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Solidity only automatically asserts when dividing by 0
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
-}
-
-// File: contracts/QsPriceOracleV2.sol
+// File: contracts/ChainlinkAdaptor.sol
 
 pragma solidity ^0.5.16;
 
@@ -4986,134 +5009,104 @@ pragma solidity ^0.5.16;
 
 
 
-contract QsPriceOracleV2 is PriceOracle, IPriceCollector {
-    struct ErrorInfo {
-        uint timestamp;
-        uint previousPrice;
-        uint errPrice;
-        address priceAdmin;
-    }
-    mapping(address => uint) prices;
-    mapping(address => bool) public priceAdmin;
+contract ChainlinkAdaptor is PriceOracle {
+    using SafeMath for uint256;
+
     address public governance;
-    mapping(address => ErrorInfo) public errorInfo;
-    mapping(address => bool) public errorHappened;
-    bool public paused = false;
 
-    using SafeMath for uint;
+    mapping(address => ChainlinkAggregatorV3Interface) public assetsPriceSources;
+    ChainlinkAggregatorV3Interface public nativeTokenPriceSource;
 
-    event PricePosted(address asset, uint previousPriceMantissa, uint requestedPriceMantissa, uint newPriceMantissa);
-    event GovernanceTransferred(address indexed previousGovernance, address indexed newGovernance);
-    event PriceAdminAdded(address newAdmin);
-    event PriceAdminRemoved(address newAdmin);
-    event PriceAlert(address priceAdmin, address asset, uint previousPriceMantissa, uint newPriceMantissa);
+    PriceOracle public fallbackPriceOracle;
 
-    modifier onlyPriceAdmin {
-        require(priceAdmin[msg.sender], "Price Admin required.");
-        _;
-    }
+    event AssetPriceSourceUpdated(address indexed asset, address indexed source);
 
     modifier onlyGovernance {
         require(msg.sender == governance, "Governance required.");
         _;
     }
 
-    modifier whenNotPaused() {
-        require(!paused, "Paused");
-        _;
-    }
-
-    constructor() public {
+    constructor(address _nativeTokenPriceSource) public {
         governance = msg.sender;
-        priceAdmin[governance] = true;
+        nativeTokenPriceSource = ChainlinkAggregatorV3Interface(_nativeTokenPriceSource);
     }
 
-    function getUnderlyingPrice(CToken cToken) public view returns (uint) {
+    function getUnderlyingPrice(CToken cToken) external view returns (uint) {
         if (SToken(address(cToken)).isNativeToken()) {
             return 1e18;
-        } else {
-            return prices[address(CErc20(address(cToken)).underlying())];
         }
-    }
 
-    function setUnderlyingPrice(CToken cToken, uint underlyingPriceMantissa) public onlyPriceAdmin {
         address asset = address(CErc20(address(cToken)).underlying());
-        setDirectPrice(asset, underlyingPriceMantissa);
+        ChainlinkAggregatorV3Interface priceSource = assetsPriceSources[asset];
+
+        if (address(priceSource) == address(0x0)) {
+            return getUnderlyingPriceFromFallback(cToken);
+        }
+
+        uint256 priceFromChainlink = getUnderlyingPriceFromChainlink(priceSource, cToken);
+        if (priceFromChainlink == 0) {
+            return getUnderlyingPriceFromFallback(cToken);
+        }
+        return priceFromChainlink;
     }
 
-    function isValidPrice(address _asset, uint _price) public view returns (bool) {
-        // initial price is 0
-        if (prices[_asset] == 0) return true;
-
-        uint min = prices[_asset].div(2);
-        uint max = prices[_asset].mul(2);
-
-        return _price > min && _price < max;
+    function getUnderlyingPriceFromFallback(CToken cToken) public view returns (uint) {
+        if (address(fallbackPriceOracle) != address(0x0)) {
+            return fallbackPriceOracle.getUnderlyingPrice(cToken);
+        }
+        return 0;
     }
 
-    function setDirectPrice(address _asset, uint _price) public onlyPriceAdmin whenNotPaused {
-        uint previousPrice = prices[_asset];
-        uint newPrice = _price;
-        if (isValidPrice(_asset, _price)) {
-            prices[_asset] = newPrice;
-            emit PricePosted(_asset, previousPrice, newPrice,  prices[_asset]);
+    function getUnderlyingPriceFromChainlink(ChainlinkAggregatorV3Interface chainlinkPriceSource, CToken cToken) view internal returns(uint256) {
+        uint256 assetPriceDecimals = chainlinkPriceSource.decimals();
+        address asset = address(CErc20(address(cToken)).underlying());
+
+        uint256 assetDecimals = CErc20(address(asset)).decimals();
+        uint256 assetPriceInUsd = getPrice(chainlinkPriceSource);
+
+        uint256 nativeTokenPriceDecimals = nativeTokenPriceSource.decimals();
+        uint256 nativeTokenPriceInUsd = getPrice(nativeTokenPriceSource);
+
+        if (assetPriceInUsd == 0 || nativeTokenPriceInUsd == 0) {
+            return 0;
+        }
+        if (assetPriceDecimals == nativeTokenPriceDecimals) {
+            return assetPriceInUsd.mul(10 ** 18).mul(10 ** 18).div(nativeTokenPriceInUsd.mul(10 ** assetDecimals));
         } else {
-            errorInfo[_asset] = ErrorInfo(block.timestamp, previousPrice, newPrice, msg.sender);
-            errorHappened[_asset] = true;
-            emit PriceAlert(msg.sender, _asset, previousPrice, newPrice);
+            return assetPriceInUsd.mul(10 ** 18).mul(10 ** nativeTokenPriceDecimals).mul(10 ** 18).div(nativeTokenPriceInUsd.mul(10 ** assetDecimals).mul(10 ** assetPriceDecimals));
         }
     }
 
-    function setDirectPrice(address[] memory _assets, uint[] memory _prices) public onlyPriceAdmin whenNotPaused {
-        require(_assets.length > 0, "At least one asset price is required");
-        require(_assets.length == _prices.length, "Assets and prices are not match");
+    function preCheckPrice(ChainlinkAggregatorV3Interface chainlinkPriceSource, CToken cToken) view external returns(uint256 priceFromChainlink, uint256 priceFromFallback) {
+        (priceFromChainlink, priceFromFallback) = (getUnderlyingPriceFromChainlink(chainlinkPriceSource, cToken), getUnderlyingPriceFromFallback(cToken));
+    }
 
-        for (uint i = 0; i < _assets.length; i++) {
-            setDirectPrice(_assets[i], _prices[i]);
+    function getSourcePrice(address asset) view public returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) {
+        return assetsPriceSources[asset].latestRoundData();
+    }
+
+    function getPrice(ChainlinkAggregatorV3Interface priceSource) public view returns (uint256) {
+        (,int256 answer,,,) = priceSource.latestRoundData();
+        if (answer > 0) {
+            return uint256(answer);
+        } else {
+            return 0;
         }
     }
 
-    function setPrice(address _asset, uint _price) private onlyPriceAdmin {
-        uint previousPrice = prices[_asset];
-        uint newPrice = _price;
-        prices[_asset] = newPrice;
-        emit PricePosted(_asset, previousPrice, newPrice,  prices[_asset]);
+    function setAssetSources(address[] calldata assets, address[] calldata sources) external onlyGovernance {
+        _setAssetsSources(assets, sources);
     }
 
-    function setDirectPriceWithForce(address[] memory _assets, uint[] memory _prices) public onlyPriceAdmin {
-        require(_assets.length > 0, "At least one asset price is required");
-        require(_assets.length == _prices.length, "Assets and prices are not match");
+    function setFallbackPriceOracle(address _fallbackPriceOracle) external onlyGovernance {
+        fallbackPriceOracle = PriceOracle(_fallbackPriceOracle);
+    }
 
-        for (uint i = 0; i < _assets.length; i++) {
-            setPrice(_assets[i], _prices[i]);
+    function _setAssetsSources(address[] memory assets, address[] memory sources) internal {
+        require(assets.length == sources.length, 'Inconsistent parameter length');
+        for (uint256 i = 0; i < assets.length; i++) {
+            assetsPriceSources[assets[i]] = ChainlinkAggregatorV3Interface(sources[i]);
+            emit AssetPriceSourceUpdated(assets[i], sources[i]);
         }
-    }
-
-    function assetPrices(address asset) external view returns (uint) {
-        return prices[asset];
-    }
-
-    function addPriceAdmin(address newPriceAdmin) public onlyGovernance {
-        priceAdmin[newPriceAdmin] = true;
-        emit PriceAdminAdded(newPriceAdmin);
-    }
-
-    function removePriceAdmin(address newPriceAdmin) public onlyGovernance {
-        priceAdmin[newPriceAdmin] = false;
-        emit PriceAdminRemoved(newPriceAdmin);
-    }
-
-    function setPaused(bool _paused) public onlyGovernance {
-        paused = _paused;
-    }
-
-    function setErrorHappened(address asset, bool happened) public onlyGovernance {
-        errorHappened[asset] = happened;
-    }
-
-    function transferGovernance(address newGovernance) public onlyGovernance {
-        require(newGovernance != address(0), "Governance address should not be zero");
-        emit GovernanceTransferred(governance, newGovernance);
-        governance = newGovernance;
     }
 }
