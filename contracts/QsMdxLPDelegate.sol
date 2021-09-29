@@ -135,10 +135,10 @@ contract QsMdxLPDelegate is CErc20Delegate {
 
             lpSupplyState.balance = sub_(lpSupplyState.balance, fTokenBalance);
 
-            EIP20Interface(mdx).transfer(account, mdxBalance());
-
             // Clear user's fMdx accrued.
             fTokenUserAccrued[account] = 0;
+
+            EIP20Interface(mdx).transfer(account, mdxBalance());
         }
 
         // Get user's comp accrued.
@@ -146,10 +146,10 @@ contract QsMdxLPDelegate is CErc20Delegate {
         if (compBalance > 0) {
             lpSupplyState.compBalance = sub_(lpSupplyState.compBalance, compBalance);
 
-            EIP20Interface(comp).transfer(account, compBalance);
-
             // Clear user's comp accrued.
             compUserAccrued[account] = 0;
+
+            EIP20Interface(comp).transfer(account, compBalance);
         }
 
         return fTokenBalance;
@@ -249,16 +249,6 @@ contract QsMdxLPDelegate is CErc20Delegate {
         // Withdraw the underlying tokens from HecoPool.
         HecoPool(hecoPool).withdraw(pid, amount);
 
-        if (mdxBalance() > 0) {
-            // Send mdx rewards to fMdx.
-            CErc20(fMdx).mint(mdxBalance());
-        }
-
-        harvestComp();
-
-        updateLPSupplyIndex();
-        updateSupplierIndex(to);
-
         EIP20Interface token = EIP20Interface(underlying);
         require(token.transfer(to, amount), "unexpected EIP-20 transfer out return");
     }
@@ -274,6 +264,32 @@ contract QsMdxLPDelegate is CErc20Delegate {
         updateSupplierIndex(safetyVault);
 
         return super.seizeInternal(seizerToken, liquidator, borrower, seizeTokens);
+    }
+
+    /**
+     * @notice Sender redeems cTokens in exchange for the underlying asset
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param redeemTokens The number of cTokens to redeem into underlying
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function redeem(uint redeemTokens) external returns (uint) {
+        // claim user's reward first
+        claimMdx(msg.sender);
+
+        return redeemInternal(redeemTokens);
+    }
+
+    /**
+     * @notice Sender redeems cTokens in exchange for a specified amount of underlying asset
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param redeemAmount The amount of underlying to redeem
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function redeemUnderlying(uint redeemAmount) external returns (uint) {
+        // claim user's reward first
+        claimMdx(msg.sender);
+
+        return redeemUnderlyingInternal(redeemAmount);
     }
 
     /*** Internal functions ***/
