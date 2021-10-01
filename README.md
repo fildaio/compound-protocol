@@ -44,6 +44,15 @@ FilDA
 | DAI | 0x3d760a45d0887dfd89a2f5385a236b29cb46ed2a | fDAI | 0x3D7a2A68D00F117e9c3cFCfA9c1c1f73cB52baFc |
 | TUSD | 0x5eE41aB6edd38cDfB9f6B4e6Cf7F75c87E170d98 | fTUSD | 0xF173F3897753692E7465E0932fe2285707E7E609 |
 
+LP Tokens
+
+| Token Name | Token Address | FilDA Token Name | fToken Address |
+| ---------- | ------------- | -------------- | -------------- |
+| HSwap ETH-HBTC | 0xafbfcbf4d52030cd9ab582d29182e706c0cc7879 | fETH-HBTCLP | 0xafbfcbf4d52030cd9ab582d29182e706c0cc7879 |
+| HSwap ETH-USDT | 0x78c90d3f8a64474982417cdb490e840c01e516d4 | fETH-USDTLP | 0x8177ce98623a6f15939c4adf02ea81852c7f3287 |
+| HSwap HBTC-USDT | 0xfbe7b74623e4be82279027a286fa3a5b5280f77c | fHBTC-USDTLP | 0x5c7550baf1e7373bd4965f2cf13da2820cebfe37 |
+| HSwap WHT-USDT | 0x499b6e03749b4baf95f9e70eed5355b138ea6c31 | fWHT-USDTLP | 0x0c81dc01d4886acee14d0a0506c26d4b3525b0b1 |
+
 Website
 ========
 https://filda.io
