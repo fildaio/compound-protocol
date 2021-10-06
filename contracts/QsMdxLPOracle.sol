@@ -4,8 +4,9 @@ import "./ChainlinkAggregatorV3Interface.sol";
 import "./IUniswapV2Pair.sol";
 import "./compound/SafeMath.sol";
 import "./compound/EIP20Interface.sol";
+import "./Ownable.sol";
 
-contract QsMdxLPOracle is ChainlinkAggregatorV3Interface {
+contract QsMdxLPOracle is ChainlinkAggregatorV3Interface, Ownable {
     using SafeMath for uint;
     using SafeMath for uint8;
 
@@ -26,6 +27,10 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface {
         uint256 updatedAt;
         uint80 answeredInRound;
     }
+
+    event ChainlinkSourceChanged(
+        uint index,
+        address newSource);
 
     constructor(
         uint8 _decimals,
@@ -69,6 +74,8 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface {
         RoundData memory data;
         uint totalSupply = IUniswapV2Pair(pair).totalSupply();
         (uint r0, uint r1, ) = IUniswapV2Pair(pair).getReserves();
+        require(r0 != 0 && r1 != 0, "QsMdxLPOracle: bad reserve");
+
         uint sqrtK = sqrt(r0.mul(r1)).mul(10 ** uint(decimals_)).div(totalSupply);
         (data.roundId, data.answer, data.startedAt, data.updatedAt, data.answeredInRound) =
                 getTokenPrice(IUniswapV2Pair(pair).token0(), token0Source);
@@ -108,6 +115,7 @@ contract QsMdxLPOracle is ChainlinkAggregatorV3Interface {
 
         RoundData memory data;
         (data.roundId, data.answer, data.startedAt, data.updatedAt, data.answeredInRound) = tokenSource.latestRoundData();
+        require(data.answer > 0, "QsMdxLPOracle: bad token price");
 
         answer = int256(uint(data.answer).mul(10 ** lpDecimals).div(10 ** tokenDecimals));
         roundId = data.roundId;
