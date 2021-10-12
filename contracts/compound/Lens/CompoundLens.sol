@@ -8,7 +8,6 @@ import "../PriceOracle.sol";
 import "../EIP20Interface.sol";
 import "../Governance/GovernorAlpha.sol";
 import "../Governance/Comp.sol";
-import "../Exponential.sol";
 import "../../QsMdxLPDelegate.sol";
 
 interface ComptrollerLensInterface {
@@ -20,7 +19,7 @@ interface ComptrollerLensInterface {
     function compAccrued(address) external view returns (uint);
 }
 
-contract CompoundLens is Exponential {
+contract CompoundLens {
     struct CTokenMetadata {
         address cToken;
         uint exchangeRateCurrent;
@@ -335,44 +334,19 @@ contract CompoundLens is Exponential {
         allocated = sub(total, balance, "sub allocated");
     }
 
-    struct PendingLocalParam {
-        uint fTokenAccrued;
-        uint supplyTokens;
-        uint supplierTokens;
-        uint compAccrued;
-        uint index;
-        uint compIndex;
-    }
-
     function getLpRewardPending(QsMdxLPDelegate lpCtoken, address account) public returns (uint mdxReward, uint compReward) {
-        PendingLocalParam memory param;
-        (,param.index,,param.compIndex) = lpCtoken.lpSupplyState();
+        CErc20 mdx = CErc20(lpCtoken.mdx());
+        Comp comp = Comp(lpCtoken.comp());
 
-        param.fTokenAccrued = HecoPool(lpCtoken.hecoPool()).pending(lpCtoken.pid(), address(lpCtoken));
-        param.supplyTokens = lpCtoken.totalSupply();
-        Double memory ratio = param.supplyTokens > 0 ? fraction(param.fTokenAccrued, param.supplyTokens) : Double({mantissa: 0});
-        Double memory index = add_(Double({mantissa: param.index}), ratio);
+        uint mdxBalance = mdx.balanceOf(account);
+        uint compBalance = comp.balanceOf(account);
 
-        Double memory supplierIndex = Double({mantissa: lpCtoken.lpSupplierIndex(account)});
-        Double memory deltaIndex = sub_(index, supplierIndex);
-        param.supplierTokens = lpCtoken.balanceOf(account);
-        if (deltaIndex.mantissa > 0) {
-            mdxReward = add_(lpCtoken.fTokenUserAccrued(account), mul_(param.supplierTokens, deltaIndex));
-        } else {
-            mdxReward = 0;
-        }
+        lpCtoken.claimMdx(account);
+        uint newMdxBalance = mdx.balanceOf(account);
+        uint newCompBalance = comp.balanceOf(account);
 
-        (,param.compAccrued) = getCompBalanceWithAccrued(Comp(lpCtoken.comp()), ComptrollerLensInterface(address(lpCtoken.comptroller())), account);
-        Double memory compRatio = param.supplyTokens > 0 ? fraction(param.compAccrued, param.supplyTokens) : Double({mantissa: 0});
-        Double memory compIndex = add_(Double({mantissa: param.compIndex}), compRatio);
-
-        Double memory compSupplierIndex = Double({mantissa: lpCtoken.compSupplierIndex(account)});
-        Double memory deltaCompIndex = sub_(compIndex, compSupplierIndex);
-        if (deltaCompIndex.mantissa > 0) {
-            compReward = add_(lpCtoken.compUserAccrued(account), mul_(param.supplierTokens, deltaCompIndex));
-        } else {
-            compReward = 0;
-        }
+        mdxReward = sub(newMdxBalance, mdxBalance, "sub allocated");
+        compReward = sub(newCompBalance, compBalance, "sub allocated");
     }
 
     struct CompVotes {
