@@ -200,14 +200,14 @@ contract QsConfig is Ownable, Exponential {
         governanceAmount = sub_(userAccrued, userAmount);
     }
 
-    function getFlashFee(address borrower, address token, uint256 amount) external view returns (uint flashFee) {
+    function getFlashFee(address borrower, address cToken, uint256 amount) external view returns (uint flashFee) {
         if (whitelist[borrower]) {
             return 0;
         }
         Exp memory flashLoanFeeRatioExp = Exp({mantissa:flashLoanFeeRatio});
         (, flashFee) = mulScalarTruncate(flashLoanFeeRatioExp, amount);
 
-        token;
+        cToken;
     }
 
     function _setCompRatio(uint _compRatio) public onlyOwner {

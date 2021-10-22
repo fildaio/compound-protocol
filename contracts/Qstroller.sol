@@ -160,7 +160,7 @@ contract Qstroller is Comptroller {
         return uint(Error.NO_ERROR);
     }
 
-    function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view external returns (uint) {
+    function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view public returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
         require(!borrowGuardianPaused[cToken], "paused");
 
@@ -169,10 +169,7 @@ contract Qstroller is Comptroller {
         }
 
         uint flashLoanCap = qsConfig.getFlashLoanCap(cToken);
-        // FlashLoan cap of 0 corresponds to unlimited flash loan
-        if (flashLoanCap != 0) {
-            require(flashLoanAmount <= flashLoanCap, "cap reached");
-        }
+        require(flashLoanAmount <= flashLoanCap, "cap reached");
 
         to;
 

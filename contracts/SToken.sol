@@ -3,6 +3,7 @@ pragma solidity ^0.5.16;
 import "./compound/CToken.sol";
 import "./Qstroller.sol";
 import "./IERC3156FlashBorrower.sol";
+import "./IWETH.sol";
 
 contract SToken is CToken {
     struct LiquidationLocalVars {
@@ -89,11 +90,13 @@ contract SToken is CToken {
      * @return The amount of `token` to be charged for the loan, on top of the returned principal.
      */
     function flashFee(address token, uint256 amount) external view returns (uint256) {
+        token;
         return getFlashFeeInternal(token, amount);
     }
 
     function getFlashFeeInternal(address token, uint256 amount) internal view returns (uint256) {
-        return Qstroller(address(comptroller)).qsConfig().getFlashFee(msg.sender, token, amount);
+        token;
+        return Qstroller(address(comptroller)).qsConfig().getFlashFee(msg.sender, address(this), amount);
     }
 
     /**
@@ -104,21 +107,29 @@ contract SToken is CToken {
      * @param data Arbitrary data structure, intended to contain user-defined parameters.
      */
     function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data) external returns (bool) {
+        token;
         require(accrueInterest() == uint(Error.NO_ERROR), "Accrue interest failed");
+        
+        Qstroller(address(comptroller)).flashLoanAllowed(address(this), address(receiver), amount);
 
         uint cashBefore = getCashPrior();
         require(cashBefore >= amount, "Insufficient liquidity");
         // 1. calculate fee
         uint fee = getFlashFeeInternal(token, amount);
         // 2. transfer fund  to receiver
-        doTransferOut(address(uint160(address(receiver))), amount);
+        doFlashLoanTransferOut(address(uint160(address(receiver))), token, amount);
         // 3. update totalBorrows
         totalBorrows = add_(totalBorrows, amount);
         // 4. execute receiver's callback function
-        receiver.onFlashLoan(msg.sender, token, amount, fee, data);
+        require(receiver.onFlashLoan(msg.sender, token, amount, fee, data) ==
+                keccak256("ERC3156FlashBorrowerInterface.onFlashLoan"),
+                "IERC3156: Callback failed"
+        );
         // 5. check cash balance
+        uint256 repaymentAmount = add_(amount, fee);
+        doFlashLoanTransferIn(address(receiver), token, repaymentAmount);
         uint cashAfter = getCashPrior();
-        require(cashAfter >= add_(cashBefore, fee), "Inconsistent balance");
+        require(cashAfter == add_(cashBefore, fee), "Inconsistent balance");
 
         (MathError err, uint reservesFee)= mulScalarTruncate(Exp({mantissa: reserveFactorMantissa}), fee);
         require(err == MathError.NO_ERROR, "Error to calculate flashloan reserve fee");
@@ -127,4 +138,13 @@ contract SToken is CToken {
         return true;
     }
 
+    function doFlashLoanTransferOut(address payable receiver, address token, uint amount) internal {
+        token;
+        doTransferOut(receiver, amount);
+    }
+
+    function doFlashLoanTransferIn(address receiver, address token, uint amount) internal {
+        token;
+        doTransferIn(receiver, amount);
+    }
 }
