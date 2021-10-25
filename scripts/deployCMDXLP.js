@@ -7,7 +7,7 @@ const UniswapPair = artifacts.require("IUniswapV2Pair");
 
 const argv = require('yargs').option('token', {string:true}).argv;
 
-let reserveFactor = 0.4e18.toString();
+let reserveFactor = 0.15e18.toString();
 let lpPid;
 let underlyingTokenAddr = "";
 let collateralFactor = 0.8e18.toString();
@@ -18,12 +18,12 @@ const fMdxAddress = '0x5788C014D41cA706DE03969E283eE7b93827B7B1';
 
 module.exports = async function(callback) {
     try {
-        console.log(`argv> pid=${argv.pid}, lptoken=${argv.token}, collateralFactor=${argv.collateralFactor}`);
-        pid = argv.pid;
+        console.log(`argv> pid=${argv.pid}, lptoken=${argv.token}, collateralFactor=${collateralFactor}`);
+        lpPid = argv.pid;
         underlyingTokenAddr = argv.token
-        collateralFactor = argv.collateralFactor
+        // collateralFactor = argv.collateralFactor
 
-        const pairInstance = await UniswapPair.at(lpTokenAddr);
+        const pairInstance = await UniswapPair.at(underlyingTokenAddr);
         const token0 = await pairInstance.token0();
         const token1 = await pairInstance.token1();
 
@@ -44,24 +44,26 @@ module.exports = async function(callback) {
         console.log(`Token1Symbol: ${symbol1}`);
         console.log(`fTokenName: ${fTokenName}`)
         console.log(`fTokenSymbol: ${fTokenSymbol}`)
+        console.log(`lpPid: ${lpPid}`)
 
         let qsControllerInstance = await Qstroller.at(Unitroller.address);
-        let admin = await qsControllerInstance.admin();
+        // let admin = await qsControllerInstance.admin();
+        let admin = "0x05Ddc595FD33D7B2AB302143c420D0e7f21B622a";
         let newLPDelegate = await QsMdxLPDelegate.new();
         const data = web3.eth.abi.encodeParameters(
             ['address', 'address', 'uint'],
             [HecoPoolAddress, fMdxAddress, lpPid]);
         let fTokenInstance = await erc20Delegator.new(underlyingTokenAddr, Unitroller.address, interestModelAddress, initialExchange.toString(), fTokenName, fTokenSymbol, 18, admin, newLPDelegate.address, data);
         await fTokenInstance._setReserveFactor(reserveFactor);
+        console.log(`Done to create market ${fTokenSymbol}: ${fTokenInstance.address}`)
+        // await qsControllerInstance._supportMarket(fTokenInstance.address);
+        // console.log(`Done to support market ${fTokenSymbol}: ${fTokenInstance.address}`);
 
-        await qsControllerInstance._supportMarket(fTokenInstance.address);
-        console.log(`Done to support market ${fTokenSymbol}: ${fTokenInstance.address}`);
+        // await qsControllerInstance._setCollateralFactor(fTokenInstance.address, collateralFactor);
+        // console.log("Done to set collateral factor %s for %s %s", collateralFactor, fTokenSymbol, fTokenInstance.address);
 
-        await qsControllerInstance._setCollateralFactor(fTokenInstance.address, collateralFactor);
-        console.log("Done to set collateral factor %s for %s %s", collateralFactor, fTokenSymbol, fTokenInstance.address);
-
-        await qsControllerInstance._setMintPaused(fTokenInstance.address, true)
-        console.log("MintPaused: ", await qsControllerInstance.mintGuardianPaused(fTokenInstance.address))
+        // await qsControllerInstance._setMintPaused(fTokenInstance.address, true)
+        // console.log("MintPaused: ", await qsControllerInstance.mintGuardianPaused(fTokenInstance.address))
         callback();
     } catch (e) {
         callback(e);

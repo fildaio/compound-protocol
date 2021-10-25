@@ -36,15 +36,17 @@ const allTokens = [
     '0x8C86799D402CD6D5d05FBb271f5f421f277C230d', // USDC
     '0x5264A0AdF29E31C618273a0260E9de8Edc13811F', //(F)
     '0x3D7a2A68D00F117e9c3cFCfA9c1c1f73cB52baFc',  // DAI
-    '0xF173F3897753692E7465E0932fe2285707E7E609'  //TUSD
+    '0xF173F3897753692E7465E0932fe2285707E7E609',  //TUSD
+    '0x0c81DC01D4886ACeE14D0a0506C26D4B3525B0B1',   //fWHT-USDTLP
+    '0xD14333706810Ba2a19Fc11aaE3931c09a6308ccd'  // fELA
 ]
 
 const allCompSpeeds = [
-    '1000350000000000000', // HT
+    '532350000000000000', // HT
     '0', // ELA
     '7800000000000000', // HFIL
     '0',                  // ethUSDT
-    '819000000000000000', // HUSD
+    '897000000000000000', // HUSD
     '0',                  // HPT(F)
     '0',                  // ETH(F
     '0',                  // HBTC
@@ -56,7 +58,7 @@ const allCompSpeeds = [
     '1950000000000000', // HBCH
     '0',                  // HLTC(F)
     '1950000000000000', // HLTC
-    '1755000000000000000', // HUSDT
+    '1872000000000000000', // HUSDT
     '0',                 // HBSV(F)
     '0', // HBSV
     '0',                  // HXTZ(F)
@@ -74,7 +76,9 @@ const allCompSpeeds = [
     '7800000000000000', // USDC
     '0',
     '7800000000000000', // DAI
-    '39000000000000000' // TUSD
+    '312000000000000000', // TUSD
+    '0',
+    '0'
 ]
 
 module.exports = async function(callback) {
@@ -85,9 +89,9 @@ module.exports = async function(callback) {
             sum += BigInt(allCompSpeeds[i])
         }
         console.log(`CompRate: ${sum}`)
-        let unitrollerInstance = await Unitroller.deployed();
-        let proxiedQstroller = await Qstroller.at(unitrollerInstance.address);
-        await proxiedQstroller._setCompSpeeds(allTokens, allCompSpeeds);
+        // let unitrollerInstance = await Unitroller.deployed();
+        // let proxiedQstroller = await Qstroller.at(unitrollerInstance.address);
+        // await proxiedQstroller._setCompSpeeds(allTokens, allCompSpeeds);
         callback();
     } catch (e) {
         console.log(e);

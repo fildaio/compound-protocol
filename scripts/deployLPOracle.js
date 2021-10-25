@@ -3,7 +3,8 @@ const ChainlinkAdaptor = artifacts.require("ChainlinkAdaptor");
 const UniswapPair = artifacts.require("IUniswapV2Pair");
 const erc20Token = artifacts.require("EIP20Interface");
 
-const adaptor = '0xA7042D87b25b18875cD1d2b1CE535C5488bc4Fd0';
+// chainlink adaptor
+const adaptor = '0x0DDD1956278d80165051805f3B688EF3C4C288A3';
 
 const argv = require('yargs').option('token', {string:true}).argv;
 let lpTokenAddr = '';
@@ -32,18 +33,24 @@ module.exports = async function(callback) {
         console.log(`token1Source: ${token1Source}`)
         console.log(`oracle description: ${description}`)
 
-        await deployer.deploy(QsMdxLPOracle,
-            8, // decimals
+        const lpOracleInstance = await QsMdxLPOracle.new(8, // decimals
             description, // description
             token0Source, // token0
             token1Source, // token1
             lpTokenAddr  // pair
             );
+        // await deployer.deploy(QsMdxLPOracle,
+        //     8, // decimals
+        //     description, // description
+        //     token0Source, // token0
+        //     token1Source, // token1
+        //     lpTokenAddr  // pair
+        //     );
 
         let assets = new Array();
         assets.push(lpTokenAddr);
         let sources = new Array();
-        sources.push(QsMdxLPOracle.address);
+        sources.push(lpOracleInstance.address);
         await adaptorInstance.setAssetSources(assets, sources);
 
         callback();
