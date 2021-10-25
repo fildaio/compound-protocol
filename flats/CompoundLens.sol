@@ -1884,6 +1884,10 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
+        /* We write previously calculated values into storage */
+        totalSupply = vars.totalSupplyNew;
+        accountTokens[redeemer] = vars.accountTokensNew;
+
         /*
          * We invoke doTransferOut for the redeemer and the redeemAmount.
          *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
@@ -1891,10 +1895,6 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
         doTransferOut(redeemer, vars.redeemAmount);
-
-        /* We write previously calculated values into storage */
-        totalSupply = vars.totalSupplyNew;
-        accountTokens[redeemer] = vars.accountTokensNew;
 
         /* We emit a Transfer event, and a Redeem event */
         emit Transfer(redeemer, address(this), vars.redeemTokens);
@@ -1976,6 +1976,11 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
         // EFFECTS & INTERACTIONS
         // (No safe failures beyond this point)
 
+        /* We write the previously calculated values into storage */
+        accountBorrows[borrower].principal = vars.accountBorrowsNew;
+        accountBorrows[borrower].interestIndex = borrowIndex;
+        totalBorrows = vars.totalBorrowsNew;
+        
         /*
          * We invoke doTransferOut for the borrower and the borrowAmount.
          *  Note: The cToken must handle variations between ERC-20 and ETH underlying.
@@ -1983,11 +1988,6 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
          *  doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
          */
         doTransferOut(borrower, borrowAmount);
-
-        /* We write the previously calculated values into storage */
-        accountBorrows[borrower].principal = vars.accountBorrowsNew;
-        accountBorrows[borrower].interestIndex = borrowIndex;
-        totalBorrows = vars.totalBorrowsNew;
 
         /* We emit a Borrow event */
         emit Borrow(borrower, borrowAmount, vars.accountBorrowsNew, vars.totalBorrowsNew);
@@ -5338,10 +5338,429 @@ contract Comp {
     }
 }
 
+// File: contracts/compound/CErc20Delegate.sol
+
+pragma solidity ^0.5.16;
+
+
+/**
+ * @title Compound's CErc20Delegate Contract
+ * @notice CTokens which wrap an EIP-20 underlying and are delegated to
+ * @author Compound
+ */
+contract CErc20Delegate is CErc20, CDelegateInterface {
+    /**
+     * @notice Construct an empty delegate
+     */
+    constructor() public {}
+
+    /**
+     * @notice Called by the delegator on a delegate to initialize it for duty
+     * @param data The encoded bytes data for any initialization
+     */
+    function _becomeImplementation(bytes memory data) public {
+        // Shh -- currently unused
+        data;
+
+        // Shh -- we don't ever want this hook to be marked pure
+        if (false) {
+            implementation = address(0);
+        }
+
+        require(msg.sender == admin, "only the admin may call _becomeImplementation");
+    }
+
+    /**
+     * @notice Called by the delegator on a delegate to forfeit its responsibility
+     */
+    function _resignImplementation() public {
+        // Shh -- we don't ever want this hook to be marked pure
+        if (false) {
+            implementation = address(0);
+        }
+
+        require(msg.sender == admin, "only the admin may call _resignImplementation");
+    }
+}
+
+// File: contracts/QsMdxLPDelegate.sol
+
+pragma solidity ^0.5.16;
+pragma experimental ABIEncoderV2;
+
+
+
+
+interface HecoPool {
+    struct PoolInfo {
+        address lpToken;
+    }
+
+    struct UserInfo {
+        uint256 amount;
+    }
+
+    function deposit(uint256, uint256) external;
+    function withdraw(uint256, uint256) external;
+    function mdx() view external returns (address);
+    function poolInfo(uint256) view external returns (PoolInfo memory);
+    function userInfo(uint256, address) view external returns (UserInfo memory);
+    function pending(uint256, address) external view returns (uint256);
+}
+
+
+/**
+ * @title Mdex LP Contract
+ * @notice CToken which wraps Mdex's LP token
+ */
+contract QsMdxLPDelegate is CErc20Delegate {
+    /**
+     * @notice HecoPool address
+     */
+    address public hecoPool;
+
+    /**
+     * @notice MDX token address
+     */
+    address public mdx;
+
+    /**
+     * @notice Pool ID of this LP in HecoPool
+     */
+    uint public pid;
+
+    /**
+     * @notice fMdx address
+     */
+    address public fMdx;
+
+    /**
+     * @notice Comp address
+     */
+    address public comp;
+
+    /**
+     * @notice Container for rewards state
+     * @member balance The balance of fMdx
+     * @member index The last updated fMdx index
+     * @member compBalance The balance of comp
+     * @member compIndex The last updated comp index
+     */
+    struct RewardState {
+        uint balance;
+        uint index;
+        uint compBalance;
+        uint compIndex;
+    }
+
+    /**
+     * @notice The state of LP supply
+     */
+    RewardState public lpSupplyState;
+
+    /**
+     * @notice The index of every LP supplier
+     */
+    mapping(address => uint) public lpSupplierIndex;
+
+    /**
+     * @notice The fMdx amount of every user
+     */
+    mapping(address => uint) public fTokenUserAccrued;
+
+    /**
+     * @notice The index of every comp supplier
+     */
+    mapping(address => uint) public compSupplierIndex;
+
+    /**
+     * @notice The comp amount of every user
+     */
+    mapping(address => uint) public compUserAccrued;
+
+    /**
+     * @notice Delegate interface to become the implementation
+     * @param data The encoded arguments for becoming
+     */
+    function _becomeImplementation(bytes memory data) public {
+        super._becomeImplementation(data);
+
+        (address hecoPoolAddress_, address fMdxAddress_, uint pid_) = abi.decode(data, (address, address, uint));
+        hecoPool = hecoPoolAddress_;
+        mdx = HecoPool(hecoPool).mdx();
+        fMdx = fMdxAddress_;
+
+        comp = Qstroller(address(comptroller)).getCompAddress();
+
+        HecoPool.PoolInfo memory poolInfo = HecoPool(hecoPool).poolInfo(pid_);
+        require(poolInfo.lpToken == underlying, "mismatch underlying");
+        pid = pid_;
+
+        // Approve moving our LP into the heco pool contract.
+        EIP20Interface(underlying).approve(hecoPoolAddress_, uint(-1));
+
+        // Approve moving mdx rewards into the fMdx contract.
+        EIP20Interface(mdx).approve(fMdxAddress_, uint(-1));
+    }
+
+    /**
+     * @notice Manually claim rewards by user
+     * @return The amount of fMdx rewards user claims
+     */
+    function claimMdx(address account) public returns (uint) {
+        claimAndStakeMdx();
+
+        updateLPSupplyIndex();
+        updateSupplierIndex(account);
+
+        // Get user's fMdx accrued.
+        uint fTokenBalance = fTokenUserAccrued[account];
+        if (fTokenBalance > 0) {
+            uint err = CErc20(fMdx).redeem(fTokenBalance);
+            require(err == 0, "redeem fmdx failed");
+
+            lpSupplyState.balance = sub_(lpSupplyState.balance, fTokenBalance);
+
+            // Clear user's fMdx accrued.
+            fTokenUserAccrued[account] = 0;
+
+            EIP20Interface(mdx).transfer(account, mdxBalance());
+        }
+
+        // Get user's comp accrued.
+        uint compBalance = compUserAccrued[account];
+        if (compBalance > 0) {
+            lpSupplyState.compBalance = sub_(lpSupplyState.compBalance, compBalance);
+
+            // Clear user's comp accrued.
+            compUserAccrued[account] = 0;
+
+            EIP20Interface(comp).transfer(account, compBalance);
+        }
+
+        return fTokenBalance;
+    }
+
+    /*** CErc20 Overrides ***/
+    /**
+     * lp token does not borrow.
+     */
+    function borrow(uint borrowAmount) external returns (uint) {
+        borrowAmount;
+        require(false, "lptoken prohibits borrowing");
+    }
+
+    /**
+     * lp token does not repayBorrow.
+     */
+    function repayBorrow(uint repayAmount) external returns (uint) {
+        repayAmount;
+        require(false, "lptoken prohibits repay");
+    }
+
+    function repayBorrowBehalf(address borrower, uint repayAmount) external returns (uint) {
+        borrower;repayAmount;
+        require(false, "lptoken prohibits repayBorrowBehalf");
+    }
+
+    function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) external returns (uint) {
+        borrower;repayAmount;cTokenCollateral;
+        require(false, "lptoken prohibits liquidate");
+    }
+
+    /*** CToken Overrides ***/
+
+    /**
+     * @notice Transfer `tokens` tokens from `src` to `dst` by `spender`
+     * @param spender The address of the account performing the transfer
+     * @param src The address of the source account
+     * @param dst The address of the destination account
+     * @param tokens The number of tokens to transfer
+     * @return Whether or not the transfer succeeded
+     */
+    function transferTokens(address spender, address src, address dst, uint tokens) internal returns (uint) {
+        claimAndStakeMdx();
+
+        updateLPSupplyIndex();
+        updateSupplierIndex(src);
+        updateSupplierIndex(dst);
+
+        return super.transferTokens(spender, src, dst, tokens);
+    }
+
+    /*** Safe Token ***/
+
+    /**
+     * @notice Gets balance of this contract in terms of the underlying
+     * @return The quantity of underlying tokens owned by this contract
+     */
+    function getCashPrior() internal view returns (uint) {
+        HecoPool.UserInfo memory userInfo = HecoPool(hecoPool).userInfo(pid, address(this));
+        return userInfo.amount;
+    }
+
+    /**
+     * @notice Transfer the underlying to this contract and sweep into master chef
+     * @param from Address to transfer funds from
+     * @param amount Amount of underlying to transfer
+     * @return The actual amount that is transferred
+     */
+    function doTransferIn(address from, uint amount) internal returns (uint) {
+        // Perform the EIP-20 transfer in
+        EIP20Interface token = EIP20Interface(underlying);
+        require(token.transferFrom(from, address(this), amount), "unexpected EIP-20 transfer in return");
+
+        // Deposit to HecoPool.
+        HecoPool(hecoPool).deposit(pid, amount);
+
+        if (mdxBalance() > 0) {
+            // Send mdx rewards to fMdx.
+            CErc20(fMdx).mint(mdxBalance());
+        }
+
+        harvestComp();
+
+        updateLPSupplyIndex();
+        updateSupplierIndex(from);
+
+        return amount;
+    }
+
+    /**
+     * @notice Transfer the underlying from this contract, after sweeping out of master chef
+     * @param to Address to transfer funds to
+     * @param amount Amount of underlying to transfer
+     */
+    function doTransferOut(address payable to, uint amount) internal {
+        // Withdraw the underlying tokens from HecoPool.
+        HecoPool(hecoPool).withdraw(pid, amount);
+
+        EIP20Interface token = EIP20Interface(underlying);
+        require(token.transfer(to, amount), "unexpected EIP-20 transfer out return");
+    }
+
+    function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
+        claimAndStakeMdx();
+
+        updateLPSupplyIndex();
+        updateSupplierIndex(liquidator);
+        updateSupplierIndex(borrower);
+
+        address safetyVault = Qstroller(address(comptroller)).qsConfig().safetyVault();
+        updateSupplierIndex(safetyVault);
+
+        return super.seizeInternal(seizerToken, liquidator, borrower, seizeTokens);
+    }
+
+    /**
+     * @notice Sender redeems cTokens in exchange for the underlying asset
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param redeemTokens The number of cTokens to redeem into underlying
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function redeem(uint redeemTokens) external returns (uint) {
+        // claim user's reward first
+        claimMdx(msg.sender);
+
+        return redeemInternal(redeemTokens);
+    }
+
+    /**
+     * @notice Sender redeems cTokens in exchange for a specified amount of underlying asset
+     * @dev Accrues interest whether or not the operation succeeds, unless reverted
+     * @param redeemAmount The amount of underlying to redeem
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function redeemUnderlying(uint redeemAmount) external returns (uint) {
+        // claim user's reward first
+        claimMdx(msg.sender);
+
+        return redeemUnderlyingInternal(redeemAmount);
+    }
+
+    /*** Internal functions ***/
+
+    function claimAndStakeMdx() internal {
+        // Deposit 0 LP into HecoPool to claim mdx rewards.
+        HecoPool(hecoPool).deposit(pid, 0);
+
+        if (mdxBalance() > 0) {
+            // Send mdx rewards to mdx pool.
+            CErc20(fMdx).mint(mdxBalance());
+        }
+
+        harvestComp();
+    }
+
+    function harvestComp() internal {
+        address[] memory holders = new address[](1);
+        holders[0] = address(this);
+        CToken[] memory cTokens = new CToken[](1);
+        cTokens[0] = CToken(fMdx);
+
+        // MdexLP contract will never borrow assets from Compound.
+        Qstroller(address(comptroller)).claimComp(holders, cTokens, false, true);
+    }
+
+    function updateLPSupplyIndex() internal {
+        uint fTokenBalance = fTokenBalance();
+        uint fTokenAccrued = sub_(fTokenBalance, lpSupplyState.balance);
+        uint supplyTokens = CToken(address(this)).totalSupply();
+        Double memory ratio = supplyTokens > 0 ? fraction(fTokenAccrued, supplyTokens) : Double({mantissa: 0});
+        Double memory index = add_(Double({mantissa: lpSupplyState.index}), ratio);
+
+        uint compBalance = compBalance();
+        uint compAccrued = sub_(compBalance, lpSupplyState.compBalance);
+        Double memory compRatio = supplyTokens > 0 ? fraction(compAccrued, supplyTokens) : Double({mantissa: 0});
+        Double memory compIndex = add_(Double({mantissa: lpSupplyState.compIndex}), compRatio);
+
+        // Update lpSupplyState.
+        lpSupplyState.index = index.mantissa;
+        lpSupplyState.balance = fTokenBalance;
+        lpSupplyState.compIndex = compIndex.mantissa;
+        lpSupplyState.compBalance = compBalance;
+    }
+
+    function updateSupplierIndex(address supplier) internal {
+        Double memory supplyIndex = Double({mantissa: lpSupplyState.index});
+        Double memory supplierIndex = Double({mantissa: lpSupplierIndex[supplier]});
+        Double memory deltaIndex = sub_(supplyIndex, supplierIndex);
+        if (deltaIndex.mantissa > 0) {
+            uint supplierTokens = CToken(address(this)).balanceOf(supplier);
+            uint supplierDelta = mul_(supplierTokens, deltaIndex);
+            fTokenUserAccrued[supplier] = add_(fTokenUserAccrued[supplier], supplierDelta);
+            lpSupplierIndex[supplier] = supplyIndex.mantissa;
+        }
+
+        Double memory compSupplyIndex = Double({mantissa: lpSupplyState.compIndex});
+        Double memory compSupplierIndex_ = Double({mantissa: compSupplierIndex[supplier]});
+        Double memory deltaCompIndex = sub_(compSupplyIndex, compSupplierIndex_);
+        if (deltaCompIndex.mantissa > 0) {
+            uint supplierTokens = CToken(address(this)).balanceOf(supplier);
+            uint supplierDelta = mul_(supplierTokens, deltaCompIndex);
+            compUserAccrued[supplier] = add_(compUserAccrued[supplier], supplierDelta);
+            compSupplierIndex[supplier] = compSupplyIndex.mantissa;
+        }
+    }
+
+    function mdxBalance() internal view returns (uint) {
+        return EIP20Interface(mdx).balanceOf(address(this));
+    }
+
+    function fTokenBalance() internal view returns (uint) {
+        return EIP20Interface(fMdx).balanceOf(address(this));
+    }
+
+    function compBalance() internal view returns (uint) {
+        return EIP20Interface(comp).balanceOf(address(this));
+    }
+}
+
 // File: contracts/compound/Lens/CompoundLens.sol
 
 pragma solidity ^0.5.16;
 pragma experimental ABIEncoderV2;
+
 
 
 
@@ -5665,13 +6084,28 @@ contract CompoundLens {
         });
     }
 
-    function getCompBalanceWithAccrued(Comp comp, ComptrollerLensInterface comptroller, address account) external returns (uint balance, uint allocated) {
+    function getCompBalanceWithAccrued(Comp comp, ComptrollerLensInterface comptroller, address account) public returns (uint balance, uint allocated) {
         balance = comp.balanceOf(account);
         comptroller.claimComp(account);
         uint newBalance = comp.balanceOf(account);
         uint accrued = comptroller.compAccrued(account);
         uint total = add(accrued, newBalance, "sum comp total");
         allocated = sub(total, balance, "sub allocated");
+    }
+
+    function getLpRewardPending(QsMdxLPDelegate lpCtoken, address account) public returns (uint mdxReward, uint compReward) {
+        CErc20 mdx = CErc20(lpCtoken.mdx());
+        Comp comp = Comp(lpCtoken.comp());
+
+        uint mdxBalance = mdx.balanceOf(account);
+        uint compBalance = comp.balanceOf(account);
+
+        lpCtoken.claimMdx(account);
+        uint newMdxBalance = mdx.balanceOf(account);
+        uint newCompBalance = comp.balanceOf(account);
+
+        mdxReward = sub(newMdxBalance, mdxBalance, "sub allocated");
+        compReward = sub(newCompBalance, compBalance, "sub allocated");
     }
 
     struct CompVotes {
