@@ -5,7 +5,6 @@ import "./compound/Exponential.sol";
 import "./Ownable.sol";
 
 contract QsConfig is Ownable, Exponential {
-    bool public compSpeedGuardianPaused = true;
     address public compToken;
     uint public safetyVaultRatio;
     address public safetyVault;
@@ -127,8 +126,9 @@ contract QsConfig is Ownable, Exponential {
      * @param protocol The address of the protocol
      * @param creditLimit The credit limit
      */
-    function _setCreditLimit(address protocol, uint creditLimit) public {
-        require(msg.sender == owner(), "only owner can set protocol credit limit");
+    function _setCreditLimit(address protocol, uint creditLimit) public onlyOwner {
+        require(isContract(protocol), "contract required");
+        require(creditLimits[protocol] != creditLimit, "no change");
 
         creditLimits[protocol] = creditLimit;
         emit CreditLimitChanged(protocol, creditLimit);
@@ -147,14 +147,11 @@ contract QsConfig is Ownable, Exponential {
     }
 
     function _setSafetyVaultRatio(uint _safetyVaultRatio) public onlyOwner {
+        require(_safetyVaultRatio < 1e18, "!safetyVaultRatio");
+
         uint oldSafetyVaultRatio = safetyVaultRatio;
         safetyVaultRatio = _safetyVaultRatio;
         emit NewSafetyVaultRatio(oldSafetyVaultRatio, safetyVaultRatio);
-    }
-    
-    function _setCompSpeedGuardianPaused(bool state) public onlyOwner returns (bool) {
-        compSpeedGuardianPaused = state;
-        return state;
     }
 
     function _setPendingSafetyGuardian(address newPendingSafetyGuardian) external {
@@ -203,14 +200,14 @@ contract QsConfig is Ownable, Exponential {
         governanceAmount = sub_(userAccrued, userAmount);
     }
 
-    function getFlashFee(address borrower, address token, uint256 amount) external view returns (uint flashFee) {
+    function getFlashFee(address borrower, address cToken, uint256 amount) external view returns (uint flashFee) {
         if (whitelist[borrower]) {
             return 0;
         }
         Exp memory flashLoanFeeRatioExp = Exp({mantissa:flashLoanFeeRatio});
         (, flashFee) = mulScalarTruncate(flashLoanFeeRatioExp, amount);
 
-        token;
+        cToken;
     }
 
     function _setCompRatio(uint _compRatio) public onlyOwner {

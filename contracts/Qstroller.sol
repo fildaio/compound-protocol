@@ -52,21 +52,32 @@ contract Qstroller is Comptroller {
         
         require(_allMarkets.length == _compSpeeds.length);
 
-        uint _compRate = 0;
         for (uint i = 0; i < _allMarkets.length; i++) {
-            address cToken = _allMarkets[i];
-            Market storage market = markets[cToken];
-            if (market.isComped == false) {
-                _addCompMarketInternal(cToken);
-            }
-            compSpeeds[cToken] = _compSpeeds[i];
-            uint supplySpeed = _compSpeeds[i] >> 128;
-            uint borrowSpeed = uint128(_compSpeeds[i]);
-            uint compSpeed = add_(supplySpeed, borrowSpeed);
-            _compRate = add_(_compRate, compSpeed);
+            _setCompSpeedInternal(_allMarkets[i], _compSpeeds[i]);
         }
-        compRate = _compRate;
     }
+
+    function _setCompSpeedInternal(address _cToken, uint _compSpeed) internal {
+        Market storage market = markets[_cToken];
+        if (market.isComped == false) {
+             _addCompMarketInternal(_cToken);
+        }
+        uint currentCompSpeed = compSpeeds[_cToken];
+        uint currentSupplySpeed = currentCompSpeed >> 128;
+        uint currentBorrowSpeed = uint128(currentCompSpeed);
+
+        uint newSupplySpeed = _compSpeed >> 128;
+        uint newBorrowSpeed = uint128(_compSpeed);
+        if (currentSupplySpeed != newSupplySpeed) {
+            updateCompSupplyIndex(_cToken);
+        }
+        if (currentBorrowSpeed != newBorrowSpeed) {
+            Exp memory borrowIndex = Exp({mantissa: CToken(_cToken).borrowIndex()});
+            updateCompBorrowIndex(_cToken, borrowIndex);
+        }
+        compSpeeds[_cToken] = _compSpeed;
+    }
+
 
     function getCompAddress() public view returns (address) {
         return qsConfig.compToken();
@@ -149,7 +160,7 @@ contract Qstroller is Comptroller {
         return uint(Error.NO_ERROR);
     }
 
-    function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view external returns (uint) {
+    function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view public returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
         require(!borrowGuardianPaused[cToken], "paused");
 
@@ -158,10 +169,7 @@ contract Qstroller is Comptroller {
         }
 
         uint flashLoanCap = qsConfig.getFlashLoanCap(cToken);
-        // FlashLoan cap of 0 corresponds to unlimited flash loan
-        if (flashLoanCap != 0) {
-            require(flashLoanAmount <= flashLoanCap, "cap reached");
-        }
+        require(flashLoanAmount <= flashLoanCap, "cap reached");
 
         to;
 
@@ -201,7 +209,7 @@ contract Qstroller is Comptroller {
             require(mErr == MathError.NO_ERROR);
             (MathError mathErr, uint nextTotalSupplyUnderlying) = addUInt(totalSupplyUnderlying, mintAmount);
             require(mathErr == MathError.NO_ERROR);
-            require(nextTotalSupplyUnderlying <= supplyCap, "cap reached");
+            require(nextTotalSupplyUnderlying <= supplyCap, ">cap");
         }
 
         // Keep the flywheel moving
@@ -216,9 +224,9 @@ contract Qstroller is Comptroller {
   */
     function updateCompSupplyIndex(address cToken) internal {
         CompMarketState storage supplyState = compSupplyState[cToken];
-        uint supplySpeed = compSpeeds[cToken];
+        uint compSpeed = compSpeeds[cToken];
         // use first 128 bit as supplySpeed
-        supplySpeed = supplySpeed >> 128 == 0 ? supplySpeed : supplySpeed >> 128;
+        uint supplySpeed = compSpeed >> 128;
         uint blockNumber = getBlockNumber();
         uint deltaBlocks = sub_(blockNumber, uint(supplyState.block));
         if (deltaBlocks > 0 && supplySpeed > 0) {
@@ -227,11 +235,11 @@ contract Qstroller is Comptroller {
             Double memory ratio = supplyTokens > 0 ? fraction(compAccrued, supplyTokens) : Double({mantissa: 0});
             Double memory index = add_(Double({mantissa: supplyState.index}), ratio);
             compSupplyState[cToken] = CompMarketState({
-            index: safe224(index.mantissa, " 224bits"),
-            block: safe32(blockNumber, "> 32bits")
+            index: safe224(index.mantissa, ">224bits"),
+            block: safe32(blockNumber, ">32bits")
             });
         } else if (deltaBlocks > 0 && supplyState.index > 0) {
-            supplyState.block = safe32(blockNumber, "> 32bits");
+            supplyState.block = safe32(blockNumber, ">32bits");
         }
     }
 
@@ -251,11 +259,11 @@ contract Qstroller is Comptroller {
             Double memory ratio = borrowAmount > 0 ? fraction(compAccrued, borrowAmount) : Double({mantissa: 0});
             Double memory index = add_(Double({mantissa: borrowState.index}), ratio);
             compBorrowState[cToken] = CompMarketState({
-            index: safe224(index.mantissa, "> 224bits"),
-            block: safe32(blockNumber, "> 32bits")
+            index: safe224(index.mantissa, ">224bits"),
+            block: safe32(blockNumber, ">32bits")
             });
         } else if (deltaBlocks > 0 && borrowState.index > 0) {
-            borrowState.block = safe32(blockNumber, "> 32bits");
+            borrowState.block = safe32(blockNumber, ">32bits");
         }
     }
 
@@ -374,7 +382,7 @@ contract Qstroller is Comptroller {
         address liquidator,
         address borrower,
         uint repayAmount) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 , "credit account");
+        require(qsConfig.getCreditLimit(borrower) == 0 , "credit");
 
         return super.liquidateBorrowAllowed(cTokenBorrowed, cTokenCollateral, liquidator, borrower, repayAmount);
     }
@@ -385,7 +393,7 @@ contract Qstroller is Comptroller {
         address liquidator,
         address borrower,
         uint seizeTokens) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 , "credit account");
+        require(qsConfig.getCreditLimit(borrower) == 0 , "credit");
 
         return super.seizeAllowed(cTokenCollateral, cTokenBorrowed, liquidator, borrower, seizeTokens);
     }

@@ -6,6 +6,8 @@ const Qstroller = artifacts.require("Qstroller");
 const sELA = artifacts.require("CEther");
 const erc20Delegate = artifacts.require("CErc20Delegate");
 const erc20Delegator = artifacts.require("CErc20Delegator");
+const wrappedNativeDelegate = artifacts.require("CWrappedNativeDelegate");
+const wrappedNativeDelegator = artifacts.require("CWrappedNativeDelegator");
 const Unitroller = artifacts.require("Unitroller");
 const CompoundLens = artifacts.require("CompoundLens");
 const ChainLinkPriceOracle = artifacts.require("ChainlinkAdaptor");
@@ -17,6 +19,7 @@ const TetherToken = artifacts.require("TetherToken");
 const HFILToken = artifacts.require("HFILToken");
 const ETHToken = artifacts.require("ETHToken");
 const ELAToken = artifacts.require("ELAToken");
+const MockWETH = artifacts.require("MockWETH");
 
 // Parameters
 const closeFactor = 0.5e18.toString();
@@ -121,6 +124,19 @@ module.exports = async function(deployer, network) {
             addressFactory["sELA"] = erc20Delegator.address;
         }
 
+        // Handle Wrapped Native
+        await deployer.deploy(MockWETH);
+        console.log("MockWETH: ", MockWETH.address);
+        await deployer.deploy(wrappedNativeDelegate);
+        await deployer.deploy(wrappedNativeDelegator, MockWETH.address, Unitroller.address, InterestModel.address, 0.02e18.toString(), "QuickSilver USDT", "sUSDT", 18, admin, erc20Delegate.address, "0x0");
+        const wrappedNativeInstance = await wrappedNativeDelegator.deployed();
+        await wrappedNativeInstance._setReserveFactor(reserveFactor);
+        await proxiedQstroller._supportMarket(wrappedNativeDelegator.address)
+        let wrappedNativeCollateralFactor = 0.8e18.toString();
+        await proxiedQstroller._setCollateralFactor(wrappedNativeDelegator.address, wrappedNativeCollateralFactor);
+        console.log("Done to set collateral factor %s for %s", wrappedNativeCollateralFactor, wrappedNativeDelegator.address);
+        addressFactory["WETH"] = TetherToken.address;
+        addressFactory["sWETH"] = erc20Delegator.address;
 
         // Handle Mocked USDT
         await deployer.deploy(TetherToken, "1000000000000000", "Tether USD", "USDT", 6);
