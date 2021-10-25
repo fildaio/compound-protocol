@@ -8,7 +8,7 @@
     "test": "tests"
   },
   "dependencies": {
-    "@truffle/hdwallet-provider": "^1.2.6",
+    "@truffle/hdwallet-provider": "^1.5.0",
     "dotenv": "^8.2.0",
     "yargs": "^16.2.0"
   },
