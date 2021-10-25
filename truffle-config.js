@@ -135,6 +135,8 @@ module.exports = {
 
       heco: {
           provider: () => new HDWalletProvider(mnemonic, `wss://ws-mainnet-node.huobichain.com`),
+          // provider: () => new HDWalletProvider(mnemonic, `https://http-mainnet.hecochain.com`),
+          // provider: () => new HDWalletProvider(mnemonic, `https://heconode.ifoobar.com`),
           network_id: "128",   // This network is yours, in the cloud.
           timeoutBlocks: 200,
           confirmations: 2,
