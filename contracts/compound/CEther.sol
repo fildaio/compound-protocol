@@ -111,6 +111,8 @@ contract CEther is SToken {
      * @notice Send Ether to CEther
      */
     function () external payable {
+        (uint err,) = mintInternal(msg.value);
+        requireNoError(err, "mint failed");
     }
 
     /*** Safe Token ***/

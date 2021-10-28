@@ -115,7 +115,7 @@ contract CWrappedNative is SToken, CErc20Storage {
     function _addReserves() external payable returns (uint256) {
        return _addReservesInternal(msg.value);
     }
-    
+
     /*** Safe Token ***/
 
     /**
@@ -152,6 +152,7 @@ contract CWrappedNative is SToken, CErc20Storage {
 
     function doFlashLoanTransferOut(address receiver, address wrapperToken, uint amount) internal {
         require(wrapperToken == underlying, "!token");
+
         IWETH nativeWrapper = IWETH(underlying);
         nativeWrapper.transfer(receiver, amount);
     }
@@ -186,6 +187,10 @@ contract CWrappedNative is SToken, CErc20Storage {
 
     function isNativeToken() public pure returns (bool) {
         return true;
+    }
+
+    function validateFlashloanToken(address token) view internal {
+        require(underlying == token, "!flashloan token");
     }
 
     function() external payable {
