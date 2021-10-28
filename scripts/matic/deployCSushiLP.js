@@ -1,5 +1,5 @@
 const Qstroller = artifacts.require("Qstroller");
-const QsMdxLPDelegate = artifacts.require("QsMdxLPDelegate");
+const QsSushiLPDelegate = artifacts.require("QsSushiLPDelegate");
 const erc20Delegator = artifacts.require("CErc20Delegator");
 const Unitroller = artifacts.require("Unitroller");
 const erc20Token = artifacts.require("EIP20Interface");
@@ -11,10 +11,9 @@ let reserveFactor = 0.4e18.toString();
 let lpPid;
 let underlyingTokenAddr = "";
 let collateralFactor = 0.8e18.toString();
-let interestModelAddress = "0xc43940f47f04b3935d7C1d51c90199924acbc944";
+let interestModelAddress = "0x195A4dFE3a8F877c5f0f7Ca7baA36B4301113130";
 
-const HecoPoolAddress = '0xfb03e11d93632d97a8981158a632dd5986f5e909';
-const fMdxAddress = '0x5788C014D41cA706DE03969E283eE7b93827B7B1';
+const sushiPool = '0x0769fd68dFb93167989C6f7254cd0D766Fb2841F';
 
 module.exports = async function(callback) {
     try {
@@ -36,8 +35,8 @@ module.exports = async function(callback) {
         let erc20 = await erc20Token.at(underlyingTokenAddr);
         let decimals = await erc20.decimals();
 
-        let fTokenName = "Filda " + symbol0 + "-" + symbol1 + " LP";
-        let fTokenSymbol = "f" + symbol0 + "-" + symbol1 + "LP";
+        let fTokenName = "Filda SUSHI " + symbol0 + "-" + symbol1 + " LP";
+        let fTokenSymbol = "fSUSHI" + symbol0 + "-" + symbol1 + "LP";
         let initialExchange = 0.02 * 10 ** decimals;
         console.log(`TokenDecimals: ${decimals}`)
         console.log(`Token0Symbol: ${symbol0}`);
@@ -47,10 +46,10 @@ module.exports = async function(callback) {
 
         let qsControllerInstance = await Qstroller.at(Unitroller.address);
         let admin = await qsControllerInstance.admin();
-        let newLPDelegate = await QsMdxLPDelegate.new();
+        let newLPDelegate = await QsSushiLPDelegate.new();
         const data = web3.eth.abi.encodeParameters(
-            ['address', 'address', 'uint'],
-            [HecoPoolAddress, fMdxAddress, lpPid]);
+            ['address', 'uint'],
+            [sushiPool, lpPid]);
         let fTokenInstance = await erc20Delegator.new(underlyingTokenAddr, Unitroller.address, interestModelAddress, initialExchange.toString(), fTokenName, fTokenSymbol, 18, admin, newLPDelegate.address, data);
         await fTokenInstance._setReserveFactor(reserveFactor);
 
