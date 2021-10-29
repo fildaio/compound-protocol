@@ -192,7 +192,7 @@ module.exports = {
           websockets: true
       },
       matictest: {
-          provider: () => new HDWalletProvider(mnemonic, `wss://rpc-mumbai.matic.today`),
+          provider: () => new HDWalletProvider(mnemonic, `wss://ws-matic-mumbai.chainstacklabs.com`),
           network_id: "80001",
           timeoutBlocks: 600,
           //confirmations: 2,

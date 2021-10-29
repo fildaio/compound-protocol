@@ -196,4 +196,9 @@ contract CErc20 is SToken, CErc20Interface {
         }
         require(success, "TOKEN_TRANSFER_OUT_FAILED");
     }
+
+    function validateFlashloanToken(address token) view internal {
+        require(underlying == token, "!flashloan token");
+    }
+
 }

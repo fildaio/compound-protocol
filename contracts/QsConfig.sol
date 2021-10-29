@@ -59,13 +59,17 @@ contract QsConfig is Ownable, Exponential {
     /// @notice Emitted when flash loan for a cToken is changed
     event NewFlashLoanCap(address indexed cToken, uint newFlashLoanCap);
 
+    event NewPendingSafetyGuardian(address oldPendingSafetyGuardian, address newPendingSafetyGuardian);
+
+    event NewSafetyGuardian(address oldSafetyGuardian, address newSafetyGuardian);
+
     constructor(QsConfig previousQsConfig) public {
+        safetyGuardian = msg.sender;
         if (address(previousQsConfig) == address(0x0)) return;
 
         compToken = previousQsConfig.compToken();
         safetyVaultRatio = previousQsConfig.safetyVaultRatio();
         safetyVault = previousQsConfig.safetyVault();
-        safetyGuardian = msg.sender;
     }
 
     /**
@@ -157,14 +161,22 @@ contract QsConfig is Ownable, Exponential {
     function _setPendingSafetyGuardian(address newPendingSafetyGuardian) external {
         require(msg.sender == safetyGuardian, "!safetyGuardian");
 
+        address oldPendingSafetyGuardian = pendingSafetyGuardian;
         pendingSafetyGuardian = newPendingSafetyGuardian;
+
+        emit NewPendingSafetyGuardian(oldPendingSafetyGuardian, newPendingSafetyGuardian);
     }
 
     function _acceptSafetyGuardian() external {
         require(msg.sender == pendingSafetyGuardian, "!pendingSafetyGuardian");
 
+        address oldPendingSafetyGuardian = pendingSafetyGuardian;
+        address oldSafetyGuardian = safetyGuardian;
         safetyGuardian = pendingSafetyGuardian;
         pendingSafetyGuardian = address(0x0);
+
+        emit NewSafetyGuardian(oldSafetyGuardian, safetyGuardian);
+        emit NewPendingSafetyGuardian(oldPendingSafetyGuardian, pendingSafetyGuardian);
     }
 
     function getCreditLimit(address protocol) external view returns (uint) {

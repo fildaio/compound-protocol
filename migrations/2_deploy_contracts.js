@@ -1,9 +1,8 @@
 const SimplePriceOracle = artifacts.require("QsSimplePriceOracle");
 const MockPriceOracle = artifacts.require("MockPriceOracle");
 const QsPriceOracleV2 = artifacts.require("QsPriceOracleV2");
-const InterestModel = artifacts.require("HecoJumpInterestModel");
+const InterestModel = artifacts.require("CommonJumpInterestModel");
 const Qstroller = artifacts.require("Qstroller");
-const sELA = artifacts.require("CEther");
 const erc20Delegate = artifacts.require("CErc20Delegate");
 const erc20Delegator = artifacts.require("CErc20Delegator");
 const wrappedNativeDelegate = artifacts.require("CWrappedNativeDelegate");
@@ -28,6 +27,9 @@ const reserveFactor = 0.3e18.toString();
 
 const maxAssets = 10;
 
+// 20 * 60 * 24 * 365 (BlockTime: 3s)
+let blocksPerYear = 10512000; 
+
 let addressFactory = {};
 module.exports = async function(deployer, network) {
     await deployer.deploy(Unitroller);
@@ -41,18 +43,19 @@ module.exports = async function(deployer, network) {
 
     let unitrollerInstance = await Unitroller.deployed();
     let qstrollerInstance = await Qstroller.deployed();
+    let qsConfigInstance = await QsConfig.deployed();
     let admin = await qstrollerInstance.admin();
     console.log("admin: ", admin);
 
     await unitrollerInstance._setPendingImplementation(Qstroller.address);
     await qstrollerInstance._become(Unitroller.address);
-
+    await qsConfigInstance._setPendingSafetyGuardian(admin);
+    await qsConfigInstance._acceptSafetyGuardian();
     const baseRatePerYear = 0.03e18.toString();
     const multiplierPerYear = 0.3e18.toString();
     const jumpMultiplierPerYear = 5e18.toString();
     const kink = 0.95e18.toString();
     const reserveFactor = 0.2e18.toString();
-    await deployer.deploy(InterestModel, baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
 
     let proxiedQstroller = await Qstroller.at(Unitroller.address);
 
@@ -72,8 +75,11 @@ module.exports = async function(deployer, network) {
         let compImpl = await unitrollerInstance.comptrollerImplementation();
         console.log("compImpl: " + compImpl);
 
+        await deployer.deploy(InterestModel, blocksPerYear, baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
+
         await deployer.deploy(MockPriceOracle);
         await proxiedQstroller._setPriceOracle(MockPriceOracle.address);
+        console.log("Done to set price oracle.", await proxiedQstroller.oracle());
         if (network == "eladev" || network == "elalocal") {
             await deployer.deploy(sELA, Unitroller.address, InterestModel.address, 0.02e18.toString(), "QuickSilver ELA", "sELA", 18, admin);
             await proxiedQstroller._supportMarket(sELA.address);
@@ -319,23 +325,32 @@ module.exports = async function(deployer, network) {
     }
 
     if (network == "matictest" || network == "matic") {
+        // 20 * 60 * 24 * 365 (BlockTime: 3s)
+        blocksPerYear = 15768000;
         let maticPriceSource = "0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada";
+        let wMatic = "0x695d5E7171d239043e36C706C3f1e9A18CDAf930";
+
         if (network == "matic") {
             maticPriceSource = "0xAB594600376Ec9fD91F8e885dADF0CE036862dE0";
+            wMatic = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270";
         }
+        
+        await deployer.deploy(InterestModel, blocksPerYear, baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
         await deployer.deploy(ChainLinkPriceOracle, maticPriceSource);
         let proxiedQstroller = await Qstroller.at(Unitroller.address);
         await proxiedQstroller._setPriceOracle(ChainLinkPriceOracle.address);
         console.log("Done to set price oracle.", await proxiedQstroller.oracle());
         addressFactory["ChainLinkPriceOracle"] = ChainLinkPriceOracle.address;
-        await deployer.deploy(sELA, Unitroller.address, InterestModel.address, 0.02e18.toString(), "FilDA Matic", "fMatic", 18, admin);
-        await proxiedQstroller._supportMarket(sELA.address);
-        console.log("Done to support market fMatic: ", sELA.address);
+        await deployer.deploy(wrappedNativeDelegate);
+        await deployer.deploy(wrappedNativeDelegator, wMatic, Unitroller.address, InterestModel.address, 0.02e18.toString(), "FilDA Matic", "fMatic", 18, admin, wrappedNativeDelegate.address, "0x0");
+        const wrappedNativeInstance = await wrappedNativeDelegator.deployed();
+        await proxiedQstroller._supportMarket(wrappedNativeDelegator.address);
+        console.log("Done to support market fMatic: ", wrappedNativeInstance.address);
         let maticCollateralFactor = 0.8e18.toString();
-        await proxiedQstroller._setCollateralFactor(sELA.address, maticCollateralFactor);
-        console.log("Done to set collateral factor %s for fMatic %s", maticCollateralFactor, sELA.address);
-        addressFactory["fMatic"] = sELA.address;
-        await deployer.deploy(Maximillion, sELA.address);
+        await proxiedQstroller._setCollateralFactor(wrappedNativeInstance.address, maticCollateralFactor);
+        console.log("Done to set collateral factor %s for fMatic %s", maticCollateralFactor, wrappedNativeInstance.address);
+        addressFactory["fMatic"] = wrappedNativeInstance.address;
+        await deployer.deploy(Maximillion, wrappedNativeInstance.address);
         addressFactory["Maximillion"] = Maximillion.address;
     }
     console.log("================= Copy and record below addresses ==============")
