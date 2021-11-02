@@ -139,7 +139,7 @@ contract CWrappedNative is SToken, CErc20Storage {
         require(msg.sender == from, "sender mismatch");
         require(msg.value == amount, "value mismatch");
         IWETH nativeWrapper = IWETH(underlying);
-        nativeWrapper.deposit.value(amount);
+        nativeWrapper.deposit.value(amount)();
         return amount;
     }
 

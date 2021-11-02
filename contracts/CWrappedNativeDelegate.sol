@@ -30,7 +30,7 @@ contract CWrappedNativeDelegate is CWrappedNative, CDelegateInterface {
         
         uint256 balance = address(this).balance;
         if (balance > 0) {
-            IWETH(underlying).deposit.value(balance);
+            IWETH(underlying).deposit.value(balance)();
         }
     }
 
