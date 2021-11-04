@@ -1,22 +1,23 @@
 [
   {
-    "constant": false,
+    "constant": true,
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "token",
         "type": "address"
-      },
+      }
+    ],
+    "name": "maxFlashLoan",
+    "outputs": [
       {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
       }
     ],
-    "name": "approve",
-    "outputs": [],
     "payable": false,
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -24,11 +25,16 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "token",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
       }
     ],
-    "name": "balanceOf",
+    "name": "flashFee",
     "outputs": [
       {
         "internalType": "uint256",
@@ -44,22 +50,27 @@
     "constant": false,
     "inputs": [
       {
-        "internalType": "address",
-        "name": "",
+        "internalType": "contract IERC3156FlashBorrower",
+        "name": "receiver",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "",
+        "name": "token",
         "type": "address"
       },
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "amount",
         "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
       }
     ],
-    "name": "transferFrom",
+    "name": "flashLoan",
     "outputs": [
       {
         "internalType": "bool",

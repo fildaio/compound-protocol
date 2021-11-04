@@ -161,6 +161,16 @@
         "internalType": "bool",
         "name": "isComped",
         "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "borrowFactorMantissa",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "liquidationIncentiveMantissa",
+        "type": "uint256"
       }
     ],
     "payable": false,
