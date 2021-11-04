@@ -129,10 +129,12 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
      * @return 0 if completed
      */
     function claimRewards(address account) public returns (uint) {
-        claimFromQuickAndStake();
+        claimFromQuick();
 
         updateLPSupplyIndex();
         updateSupplierIndex(account);
+
+        mintToFilda();
 
         // Get user's token accrued.
         for (uint8 i = 0; i < rewardsTokens.length; i++) {
@@ -144,21 +146,33 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
             lpSupplyStates[token].balance = sub_(lpSupplyStates[token].balance, accrued);
 
             if (rewardsFToken[token] != address(0)) {
-                uint err = CErc20(rewardsFToken[token]).redeem(accrued);
+                uint err = CErc20(rewardsFToken[token]).redeemUnderlying(accrued);
                 require(err == 0, "redeem fmdx failed");
-
-                // Clear user's token accrued.
-                tokenUserAccrued[account][token] = 0;
-
-                EIP20Interface(token).transfer(account, tokenBalance(token));
-            } else {
-                // Clear user's token accrued.
-                tokenUserAccrued[account][token] = 0;
-                EIP20Interface(token).transfer(account, accrued);
             }
+
+                // Clear user's token accrued.
+            tokenUserAccrued[account][token] = 0;
+
+            EIP20Interface(token).transfer(account, accrued);
         }
 
         return 0;
+    }
+
+    function setRewardFToken(address token, address ftoken) external {
+        require(msg.sender == admin, "QsQuickDualLPDelegate::setRewardFToken: Caller must be admin");
+        require(token != address(0), "invalid param");
+
+        if (ftoken != address(0)) {
+            require(token == CErc20(ftoken).underlying(), "mismatch underlying");
+            if(!harvestComp) harvestComp = true;
+        }
+
+        if (ftoken == address(0) && rewardsFToken[token] != address(0) && lpSupplyStates[token].balance > 0) {
+            CErc20(rewardsFToken[token]).redeemUnderlying(lpSupplyStates[token].balance);
+        }
+
+        rewardsFToken[token] = ftoken;
     }
 
     /*** CErc20 Overrides ***/
@@ -204,11 +218,13 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
      * @return Whether or not the transfer succeeded
      */
     function transferTokens(address spender, address src, address dst, uint tokens) internal returns (uint) {
-        claimFromQuickAndStake();
+        claimFromQuick();
 
         updateLPSupplyIndex();
         updateSupplierIndex(src);
         updateSupplierIndex(dst);
+
+        mintToFilda();
 
         return super.transferTokens(spender, src, dst, tokens);
     }
@@ -237,10 +253,12 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
         // Deposit to staking pool.
         stakingRewards.stake(amount);
 
-        claimFromQuickAndStake();
+        claimFromQuick();
 
         updateLPSupplyIndex();
         updateSupplierIndex(from);
+
+        mintToFilda();
 
         return amount;
     }
@@ -259,11 +277,13 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
     }
 
     function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
-        claimFromQuickAndStake();
+        claimFromQuick();
 
         updateLPSupplyIndex();
         updateSupplierIndex(liquidator);
         updateSupplierIndex(borrower);
+
+        mintToFilda();
 
         address safetyVault = Qstroller(address(comptroller)).qsConfig().safetyVault();
         updateSupplierIndex(safetyVault);
@@ -299,17 +319,8 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
 
     /*** Internal functions ***/
 
-    function claimFromQuickAndStake() internal {
+    function claimFromQuick() internal {
         stakingRewards.getReward();
-
-        for (uint8 i = 0; i < rewardsTokens.length; i++) {
-            address token = rewardsTokens[i];
-            if (rewardsFToken[token] == address(0)) continue;
-
-            uint balance = tokenBalance(token);
-            if (balance == 0) continue;
-            CErc20(rewardsFToken[token]).mint(balance);
-        }
 
         if (harvestComp) {
             // harvestComp
@@ -318,16 +329,22 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
 
     }
 
+    function mintToFilda() internal {
+        for (uint8 i = 0; i < rewardsTokens.length; i++) {
+            address token = rewardsTokens[i];
+            if (rewardsFToken[token] == address(0)) continue;
+
+            uint balance = tokenBalance(token);
+            if (balance == 0) continue;
+            CErc20(rewardsFToken[token]).mint(balance);
+        }
+    }
+
     function updateLPSupplyIndex() internal {
         for (uint8 i = 0; i < rewardsTokens.length; i++) {
             address token = rewardsTokens[i];
 
-            uint balance;
-            if (rewardsFToken[token] == address(0)) {
-                balance = tokenBalance(token);
-            } else {
-                balance = fTokenBalance(rewardsFToken[token]);
-            }
+            uint balance = tokenBalance(token);
             uint tokenAccrued = sub_(balance, lpSupplyStates[token].balance);
             uint supplyTokens = this.totalSupply();
             Double memory ratio = supplyTokens > 0 ? fraction(tokenAccrued, supplyTokens) : Double({mantissa: 0});
@@ -357,10 +374,6 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
 
     function tokenBalance(address token) internal view returns (uint) {
         return EIP20Interface(token).balanceOf(address(this));
-    }
-
-    function fTokenBalance(address ftoken) internal view returns (uint) {
-        return EIP20Interface(ftoken).balanceOf(address(this));
     }
 
 }
