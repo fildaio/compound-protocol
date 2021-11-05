@@ -96,7 +96,11 @@ contract QsQuickLPDelegate is CErc20Delegate {
         stakingToken = stakingRewards.stakingToken();
         require(address(stakingToken) == underlying, "mismatch underlying");
 
-        rewardsTokens.push(address(stakingRewards.rewardsToken()));
+        if (rewardsTokens.length == 0) {
+            rewardsTokens.push(address(stakingRewards.rewardsToken()));
+        } else {
+            rewardsTokens[0] = address(stakingRewards.rewardsToken());
+        }
 
         FTokenStorage ftokenStorage = FTokenStorage(ftokenStorageAddr);
         address ftoken = ftokenStorage.ftoken(rewardsTokens[0]);
