@@ -45,11 +45,6 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
     IStakingDualRewards public stakingRewards;
 
     /**
-     * @notice staking token
-     */
-    EIP20Interface public stakingToken;
-
-    /**
      * @notice reward tokens
      */
     address[] public rewardsTokens;
@@ -83,8 +78,6 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
 
     bool public harvestComp;
 
-    address public WETH;
-
     /**
      * @notice Delegate interface to become the implementation
      * @param data The encoded arguments for becoming
@@ -94,23 +87,20 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
 
         (address stakingRewardsAddr, address ftokenStorageAddr) = abi.decode(data, (address, address));
         stakingRewards = IStakingDualRewards(stakingRewardsAddr);
-        stakingToken = stakingRewards.stakingToken();
-        require(address(stakingToken) == underlying, "mismatch underlying");
+        require(address(stakingRewards.stakingToken()) == underlying, "mismatch underlying");
 
+        bool pushComp = false;
         if (rewardsTokens.length == 0) {
+            pushComp = true;
             rewardsTokens.push(address(stakingRewards.rewardsTokenA()));
             rewardsTokens.push(address(stakingRewards.rewardsTokenB()));
-        } else {
-            rewardsTokens[0] = address(stakingRewards.rewardsTokenA());
-            rewardsTokens[1] = address(stakingRewards.rewardsTokenB());
         }
 
 
         FTokenStorage ftokenStorage = FTokenStorage(ftokenStorageAddr);
-        WETH = ftokenStorage.WETH();
         for (uint8 i = 0; i < rewardsTokens.length; i++) {
             // ignore native token, delegator cannot send value
-            if(rewardsTokens[i] == WETH) continue;
+            if(rewardsTokens[i] == ftokenStorage.WETH()) continue;
 
             address ftoken = ftokenStorage.ftoken(rewardsTokens[i]);
             if (ftoken == address(0)) continue;
@@ -122,7 +112,7 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
             EIP20Interface(rewardsTokens[i]).approve(ftoken, uint(-1));
         }
 
-        if (harvestComp) {
+        if (harvestComp && pushComp) {
             rewardsTokens.push(Qstroller(address(comptroller)).getCompAddress());
         }
 
