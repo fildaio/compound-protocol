@@ -24,7 +24,7 @@ contract QsBorrowCapCErc20Delegate is CErc20Delegate {
      * @param borrowAmount The amount of the underlying asset to borrow
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
-    function borrowInternal(uint borrowAmount) internal nonReentrant returns (uint) {
+    function borrowInternal(uint borrowAmount) internal returns (uint) {
         uint totalBorrowsNew = add_(totalBorrows, borrowAmount);
         require(totalBorrowsNew <= borrowCap, "Exceed borrow cap");
 

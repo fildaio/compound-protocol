@@ -63,6 +63,11 @@ contract QsConfig is Ownable, Exponential {
 
     event NewSafetyGuardian(address oldSafetyGuardian, address newSafetyGuardian);
 
+    modifier onlySafetyGuardian {
+        require(msg.sender == safetyGuardian, "Safety guardian required.");
+        _;
+    }
+
     constructor(QsConfig previousQsConfig) public {
         safetyGuardian = msg.sender;
         if (address(previousQsConfig) == address(0x0)) return;
@@ -78,7 +83,7 @@ contract QsConfig is Ownable, Exponential {
       * @param cTokens The addresses of the markets (tokens) to change the borrow caps for
       * @param newBorrowCaps The new borrow cap values in underlying to be set. A value of 0 corresponds to unlimited borrowing.
       */
-    function _setMarketBorrowCaps(address[] calldata cTokens, uint[] calldata newBorrowCaps) external onlyOwner {
+    function _setMarketBorrowCaps(address[] calldata cTokens, uint[] calldata newBorrowCaps) external onlySafetyGuardian {
         uint numMarkets = cTokens.length;
         uint numBorrowCaps = newBorrowCaps.length;
 
@@ -96,7 +101,7 @@ contract QsConfig is Ownable, Exponential {
      * @param cTokens The addresses of the markets (tokens) to change the flash loan caps for
      * @param newFlashLoanCaps The new flash loan cap values in underlying to be set. A value of 0 corresponds to unlimited flash loan.
      */
-    function _setMarketFlashLoanCaps(address[] calldata cTokens, uint[] calldata newFlashLoanCaps) external onlyOwner {
+    function _setMarketFlashLoanCaps(address[] calldata cTokens, uint[] calldata newFlashLoanCaps) external onlySafetyGuardian {
         uint numMarkets = cTokens.length;
         uint numFlashLoanCaps = newFlashLoanCaps.length;
 
@@ -114,7 +119,7 @@ contract QsConfig is Ownable, Exponential {
      * @param cTokens The addresses of the markets (tokens) to change the supply caps for
      * @param newSupplyCaps The new supply cap values in underlying to be set. A value of 0 corresponds to unlimited supplying.
      */
-    function _setMarketSupplyCaps(address[] calldata cTokens, uint[] calldata newSupplyCaps) external onlyOwner {
+    function _setMarketSupplyCaps(address[] calldata cTokens, uint[] calldata newSupplyCaps) external onlySafetyGuardian {
         uint numMarkets = cTokens.length;
         uint numSupplyCaps = newSupplyCaps.length;
 
@@ -150,7 +155,7 @@ contract QsConfig is Ownable, Exponential {
         emit NewSafetyVault(oldSafetyVault, safetyVault);
     }
 
-    function _setSafetyVaultRatio(uint _safetyVaultRatio) public onlyOwner {
+    function _setSafetyVaultRatio(uint _safetyVaultRatio) public onlySafetyGuardian {
         require(_safetyVaultRatio < 1e18, "!safetyVaultRatio");
 
         uint oldSafetyVaultRatio = safetyVaultRatio;
@@ -158,9 +163,7 @@ contract QsConfig is Ownable, Exponential {
         emit NewSafetyVaultRatio(oldSafetyVaultRatio, safetyVaultRatio);
     }
 
-    function _setPendingSafetyGuardian(address newPendingSafetyGuardian) external {
-        require(msg.sender == safetyGuardian, "!safetyGuardian");
-
+    function _setPendingSafetyGuardian(address newPendingSafetyGuardian) external onlyOwner {
         address oldPendingSafetyGuardian = pendingSafetyGuardian;
         pendingSafetyGuardian = newPendingSafetyGuardian;
 
@@ -222,7 +225,7 @@ contract QsConfig is Ownable, Exponential {
         cToken;
     }
 
-    function _setCompRatio(uint _compRatio) public onlyOwner {
+    function _setCompRatio(uint _compRatio) public onlySafetyGuardian {
         require(_compRatio < 1e18, "compRatio should be less then 100%");
         uint oldCompRatio = compRatio;
         compRatio = _compRatio;
@@ -234,35 +237,35 @@ contract QsConfig is Ownable, Exponential {
         return blacklist[user];
     }
 
-    function _addToWhitelist(address _member) public onlyOwner {
+    function _addToWhitelist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         whitelist[_member] = true;
 
         emit WhitelistChange(_member, true);
     }
 
-    function _removeFromWhitelist(address _member) public onlyOwner {
+    function _removeFromWhitelist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         whitelist[_member] = false;
 
         emit WhitelistChange(_member, false);
     }
 
-    function _addToBlacklist(address _member) public onlyOwner {
+    function _addToBlacklist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         blacklist[_member] = true;
 
         emit BlacklistChange(_member, true);
     }
 
-    function _removeFromBlacklist(address _member) public onlyOwner {
+    function _removeFromBlacklist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         blacklist[_member] = false;
 
         emit BlacklistChange(_member, false);
     }
 
-    function _setFlashLoanFeeRatio(uint _feeRatio) public onlyOwner {
+    function _setFlashLoanFeeRatio(uint _feeRatio) public onlySafetyGuardian {
         require(_feeRatio != flashLoanFeeRatio, "Same fee ratio already set");
         require(_feeRatio < 1e18, "Invalid fee ratio");
 

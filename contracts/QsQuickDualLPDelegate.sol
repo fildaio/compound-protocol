@@ -203,6 +203,11 @@ contract QsQuickDualLPDelegate is CErc20Delegate {
         require(false, "lptoken prohibits flashLoan");
     }
 
+    function _addReserves(uint addAmount) external returns (uint) {
+        addAmount;
+        require(false);
+    }
+
     /*** CToken Overrides ***/
 
     /**

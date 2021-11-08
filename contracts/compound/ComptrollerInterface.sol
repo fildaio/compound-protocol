@@ -48,4 +48,6 @@ contract ComptrollerInterface {
         uint repayAmount) external view returns (uint, uint);
 
     function getLiquidationIncentive(address cTokenCollateral) public view returns (uint);
+
+    function safetyGuardian() external view returns (address);
 }

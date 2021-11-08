@@ -205,6 +205,11 @@ contract QsSushiLPDelegate is CErc20Delegate {
         require(false);
     }
 
+    function _addReserves(uint addAmount) external returns (uint) {
+        addAmount;
+        require(false);
+    }
+
     /*** CToken Overrides ***/
 
     /**
@@ -247,7 +252,7 @@ contract QsSushiLPDelegate is CErc20Delegate {
     function doTransferIn(address from, uint amount) internal returns (uint) {
         // Perform the EIP-20 transfer in
         EIP20Interface token = EIP20Interface(underlying);
-        require(token.transferFrom(from, address(this), amount), "transfer in fail");
+        require(token.transferFrom(from, address(this), amount), "!transfer");
 
         // Deposit to sushi pool.
         sushiPool.deposit(pid, amount, address(this));
@@ -270,7 +275,7 @@ contract QsSushiLPDelegate is CErc20Delegate {
         sushiPool.withdraw(pid, amount, address(this));
 
         EIP20Interface token = EIP20Interface(underlying);
-        require(token.transfer(to, amount), "transfer out fail");
+        require(token.transfer(to, amount), "!transfer");
     }
 
     function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {

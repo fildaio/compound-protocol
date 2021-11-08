@@ -204,7 +204,7 @@ contract Qstroller is Comptroller {
 
         // Supply cap of 0 corresponds to unlimited borrowing
         if (supplyCap != 0) {
-            Exp memory exchangeRate = Exp({mantissa: CTokenInterface(cToken).exchangeRateCurrent()});
+            Exp memory exchangeRate = Exp({mantissa: CTokenInterface(cToken).exchangeRateStored()});
             (MathError mErr, uint totalSupplyUnderlying) = mulScalarTruncate(exchangeRate, EIP20Interface(cToken).totalSupply());
             require(mErr == MathError.NO_ERROR);
             (MathError mathErr, uint nextTotalSupplyUnderlying) = addUInt(totalSupplyUnderlying, mintAmount);
@@ -417,7 +417,7 @@ contract Qstroller is Comptroller {
     }
 
     function _supportMarket(CToken cToken) external returns (uint) {
-        if (msg.sender != qsConfig.safetyGuardian()) {
+        if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SUPPORT_MARKET_OWNER_CHECK);
         }
 
@@ -443,7 +443,7 @@ contract Qstroller is Comptroller {
       */
     function _setPriceOracle(PriceOracle newOracle) external returns (uint) {
         // Check caller is admin
-        if (msg.sender != qsConfig.safetyGuardian()) {
+        if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PRICE_ORACLE_OWNER_CHECK);
         }
 
@@ -458,4 +458,9 @@ contract Qstroller is Comptroller {
 
         return uint(Error.NO_ERROR);
     }
+
+    function safetyGuardian() external view returns (address) {
+        return qsConfig.safetyGuardian();
+    }
+
 }

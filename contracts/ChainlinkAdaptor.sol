@@ -17,6 +17,7 @@ contract ChainlinkAdaptor is PriceOracle {
     PriceOracle public fallbackPriceOracle;
 
     event AssetPriceSourceUpdated(address indexed asset, address indexed source);
+    event GovernanceTransferred(address indexed previousGovernance, address indexed newGovernance);
 
     modifier onlyGovernance {
         require(msg.sender == governance, "Governance required.");
@@ -105,5 +106,11 @@ contract ChainlinkAdaptor is PriceOracle {
             assetsPriceSources[assets[i]] = ChainlinkAggregatorV3Interface(sources[i]);
             emit AssetPriceSourceUpdated(assets[i], sources[i]);
         }
+    }
+
+    function transferGovernance(address newGovernance) external onlyGovernance {
+        require(newGovernance != address(0), "New governance is zero address");
+        emit GovernanceTransferred(governance, newGovernance);
+        governance = newGovernance;
     }
 }
