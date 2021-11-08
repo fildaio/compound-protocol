@@ -6,42 +6,40 @@ import "./compound/EIP20Interface.sol";
 import "./Qstroller.sol";
 import "./FTokenStorage.sol";
 
-interface IStakingRewards {
-    // Views
-    function lastTimeRewardApplicable() external view returns (uint256);
-
-    function rewardPerToken() external view returns (uint256);
-
-    function earned(address account) external view returns (uint256);
-
-    function totalSupply() external view returns (uint256);
-
-    function balanceOf(address account) external view returns (uint256);
-
-    // Mutative
-
-    function stake(uint256 amount) external;
-
-    function withdraw(uint256 amount) external;
-
-    function getReward() external;
-
-    function exit() external;
-
-    function stakingToken() external view returns(EIP20Interface);
-    function rewardsToken() external view returns(EIP20Interface);
+interface IRewarder {
+    function pendingTokens(uint256 pid, address user, uint256 sushiAmount) external view returns (EIP20Interface[] memory, uint256[] memory);
 }
 
+interface MiniChefV2 {
+
+    struct UserInfo {
+        uint256 amount;
+        int256 rewardDebt;
+    }
+
+    function lpToken(uint pid) external view returns(address);
+    function rewarder(uint pid) external view returns(IRewarder);
+    function deposit(uint256 pid, uint256 amount, address to) external;
+    function withdraw(uint256 pid, uint256 amount, address to) external;
+    function harvest(uint256 pid, address to) external;
+    function SUSHI() view external returns (EIP20Interface);
+    function userInfo(uint256 pid, address account) view external returns (UserInfo memory);
+}
 
 /**
- * @title Quick LP Contract
- * @notice CToken which wraps Quick's LP token
+ * @title sushi LP Contract
+ * @notice CToken which wraps sushi's LP token
  */
-contract QsQuickLPDelegate is CErc20Delegate {
+contract QsSushiLPDelegate is CErc20Delegate {
     /**
-     * @notice Quick staking pool
+     * @notice sushiPool
      */
-    IStakingRewards public stakingRewards;
+    MiniChefV2 public sushiPool;
+
+    /**
+     * @notice Pool ID of this LP in sushiPool
+     */
+    uint public pid;
 
     /**
      * @notice reward tokens
@@ -84,41 +82,52 @@ contract QsQuickLPDelegate is CErc20Delegate {
     function _becomeImplementation(bytes memory data) public {
         super._becomeImplementation(data);
 
-        (address stakingRewardsAddr, address ftokenStorageAddr) = abi.decode(data, (address, address));
-        stakingRewards = IStakingRewards(stakingRewardsAddr);
-        require(address(stakingRewards.stakingToken()) == underlying, "mismatch underlying");
+        (address poolAddress_, uint pid_, address ftokenStorageAddr) = abi.decode(data, (address, uint, address));
+        sushiPool = MiniChefV2(poolAddress_);
+        require(underlying == sushiPool.lpToken(pid_), "mismatch underlying");
+
+        pid = pid_;
+        IRewarder rewarder = sushiPool.rewarder(pid_);
+        (EIP20Interface[] memory exRewardTokens, ) = rewarder.pendingTokens(pid, address(this), 0);
 
         bool pushComp = false;
         if (rewardsTokens.length == 0) {
             pushComp = true;
-            rewardsTokens.push(address(stakingRewards.rewardsToken()));
+            rewardsTokens.push(address(sushiPool.SUSHI()));
+            for (uint8 i = 0; i < exRewardTokens.length; i++) {
+                rewardsTokens.push(address(exRewardTokens[i]));
+            }
         }
 
         FTokenStorage ftokenStorage = FTokenStorage(ftokenStorageAddr);
-        address ftoken = ftokenStorage.ftoken(rewardsTokens[0]);
-        // ignore native token, delegator cannot send value
-        if (rewardsTokens[0] != ftokenStorage.WETH() && ftoken != address(0)) {
+        for (uint8 i = 0; i < rewardsTokens.length; i++) {
+            // ignore native token, delegator cannot send value
+            if(rewardsTokens[i] == ftokenStorage.WETH()) continue;
+
+            address ftoken = ftokenStorage.ftoken(rewardsTokens[i]);
+            if (ftoken == address(0)) continue;
+
             harvestComp = true;
-            rewardsFToken[rewardsTokens[0]] = ftoken;
+            rewardsFToken[rewardsTokens[i]] = ftoken;
 
             // Approve moving mdx rewards into the fMdx contract.
-            EIP20Interface(rewardsTokens[0]).approve(ftoken, uint(-1));
+            EIP20Interface(rewardsTokens[i]).approve(ftoken, uint(-1));
         }
 
         if (harvestComp && pushComp) {
             rewardsTokens.push(Qstroller(address(comptroller)).getCompAddress());
         }
 
-        // Approve moving our LP into the heco pool contract.
-        EIP20Interface(underlying).approve(stakingRewardsAddr, uint(-1));
+        // Approve moving our LP into the pool contract.
+        EIP20Interface(underlying).approve(poolAddress_, uint(-1));
     }
 
     /**
      * @notice Manually claim rewards by user
-     * @return 0 if completed
+     * @return The amount of sushi rewards user claims
      */
     function claimRewards(address account) public returns (uint) {
-        claimFromQuick();
+        claimRewardsFromSushi();
 
         updateLPSupplyIndex();
         updateSupplierIndex(account);
@@ -136,7 +145,7 @@ contract QsQuickLPDelegate is CErc20Delegate {
 
             if (rewardsFToken[token] != address(0)) {
                 uint err = CErc20(rewardsFToken[token]).redeemUnderlying(accrued);
-                require(err == 0, "redeem fmdx failed");
+                require(err == 0, "redeem ftoken failed");
             }
 
                 // Clear user's token accrued.
@@ -149,7 +158,7 @@ contract QsQuickLPDelegate is CErc20Delegate {
     }
 
     function setRewardFToken(address token, address ftoken) external {
-        require(msg.sender == admin, "QsQuickLPDelegate::setRewardFToken: Caller must be admin");
+        require(msg.sender == admin, "Caller must be admin");
         require(token != address(0), "invalid param");
 
         if (ftoken != address(0)) {
@@ -170,7 +179,7 @@ contract QsQuickLPDelegate is CErc20Delegate {
      */
     function borrow(uint borrowAmount) external returns (uint) {
         borrowAmount;
-        require(false, "lptoken prohibits borrowing");
+        require(false);
     }
 
     /**
@@ -178,22 +187,22 @@ contract QsQuickLPDelegate is CErc20Delegate {
      */
     function repayBorrow(uint repayAmount) external returns (uint) {
         repayAmount;
-        require(false, "lptoken prohibits repay");
+        require(false);
     }
 
     function repayBorrowBehalf(address borrower, uint repayAmount) external returns (uint) {
         borrower;repayAmount;
-        require(false, "lptoken prohibits repayBorrowBehalf");
+        require(false);
     }
 
     function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) external returns (uint) {
         borrower;repayAmount;cTokenCollateral;
-        require(false, "lptoken prohibits liquidate");
+        require(false);
     }
 
     function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data) external returns (bool) {
         receiver;token;amount;data;
-        require(false, "lptoken prohibits flashLoan");
+        require(false);
     }
 
     /*** CToken Overrides ***/
@@ -207,7 +216,7 @@ contract QsQuickLPDelegate is CErc20Delegate {
      * @return Whether or not the transfer succeeded
      */
     function transferTokens(address spender, address src, address dst, uint tokens) internal returns (uint) {
-        claimFromQuick();
+        claimRewardsFromSushi();
 
         updateLPSupplyIndex();
         updateSupplierIndex(src);
@@ -225,7 +234,8 @@ contract QsQuickLPDelegate is CErc20Delegate {
      * @return The quantity of underlying tokens owned by this contract
      */
     function getCashPrior() internal view returns (uint) {
-        return stakingRewards.balanceOf(address(this));
+        MiniChefV2.UserInfo memory userInfo = sushiPool.userInfo(pid, address(this));
+        return userInfo.amount;
     }
 
     /**
@@ -237,12 +247,10 @@ contract QsQuickLPDelegate is CErc20Delegate {
     function doTransferIn(address from, uint amount) internal returns (uint) {
         // Perform the EIP-20 transfer in
         EIP20Interface token = EIP20Interface(underlying);
-        require(token.transferFrom(from, address(this), amount), "unexpected EIP-20 transfer in return");
+        require(token.transferFrom(from, address(this), amount), "transfer in fail");
 
-        // Deposit to staking pool.
-        stakingRewards.stake(amount);
-
-        claimFromQuick();
+        // Deposit to sushi pool.
+        sushiPool.deposit(pid, amount, address(this));
 
         updateLPSupplyIndex();
         updateSupplierIndex(from);
@@ -258,15 +266,15 @@ contract QsQuickLPDelegate is CErc20Delegate {
      * @param amount Amount of underlying to transfer
      */
     function doTransferOut(address payable to, uint amount) internal {
-        // Withdraw the underlying tokens from staking pool.
-        stakingRewards.withdraw(amount);
+        // Withdraw the underlying tokens from sushi pool.
+        sushiPool.withdraw(pid, amount, address(this));
 
         EIP20Interface token = EIP20Interface(underlying);
-        require(token.transfer(to, amount), "unexpected EIP-20 transfer out return");
+        require(token.transfer(to, amount), "transfer out fail");
     }
 
     function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
-        claimFromQuick();
+        claimRewardsFromSushi();
 
         updateLPSupplyIndex();
         updateSupplierIndex(liquidator);
@@ -308,14 +316,13 @@ contract QsQuickLPDelegate is CErc20Delegate {
 
     /*** Internal functions ***/
 
-    function claimFromQuick() internal {
-        stakingRewards.getReward();
+    function claimRewardsFromSushi() internal {
+        sushiPool.harvest(pid, address(this));
 
         if (harvestComp) {
             // harvestComp
             Qstroller(address(comptroller)).claimComp(address(this));
         }
-
     }
 
     function mintToFilda() internal {
@@ -364,5 +371,4 @@ contract QsQuickLPDelegate is CErc20Delegate {
     function tokenBalance(address token) internal view returns (uint) {
         return EIP20Interface(token).balanceOf(address(this));
     }
-
 }
