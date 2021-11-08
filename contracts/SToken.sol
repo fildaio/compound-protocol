@@ -238,15 +238,12 @@ contract SToken is CToken {
                 keccak256("ERC3156FlashBorrower.onFlashLoan"),
                 "IERC3156: Callback failed"
         );
-        // 5. check cash balance
+        // 5. take amount + fee from receiver
         uint256 repaymentAmount = add_(amount, fee);
         doFlashLoanTransferIn(address(receiver), token, repaymentAmount);
-        uint cashAfter = getCashPrior();
-        require(cashAfter == add_(cashBefore, fee), "Inconsistent balance");
 
-        (MathError err, uint reservesFee)= mulScalarTruncate(Exp({mantissa: reserveFactorMantissa}), fee);
-        require(err == MathError.NO_ERROR, "Error to calculate flashloan reserve fee");
-        totalReserves = add_(totalReserves, reservesFee);
+        // 6. update reserves
+        totalReserves = add_(totalReserves, fee);
         totalBorrows = sub_(totalBorrows, amount);
         return true;
     }
@@ -258,7 +255,8 @@ contract SToken is CToken {
 
     function doFlashLoanTransferIn(address receiver, address token, uint amount) internal {
         token;
-        doTransferIn(receiver, amount);
+        uint actualAmount = doTransferIn(receiver, amount);
+        require(actualAmount == amount, "!amount");
     }
 
     function validateFlashloanToken(address token) view internal;

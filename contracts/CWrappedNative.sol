@@ -159,9 +159,14 @@ contract CWrappedNative is SToken, CErc20Storage {
 
     function doFlashLoanTransferIn(address receiver, address wrapperToken, uint amount) internal {
         require(wrapperToken == underlying, "!token");
-
         IWETH nativeWrapper = IWETH(underlying);
+        uint balanceBefore = nativeWrapper.balanceOf(address(this));
+
         nativeWrapper.transferFrom(receiver, address(this), amount);
+
+        uint balanceAfter = nativeWrapper.balanceOf(address(this));
+        require(balanceAfter >= balanceBefore, "TRANSFER_IN_OVERFLOW");
+        require(balanceAfter - balanceBefore == amount, "!amount");
     }
 
     function requireNoError(uint errCode, string memory message) internal pure {
