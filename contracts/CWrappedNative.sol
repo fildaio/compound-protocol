@@ -150,7 +150,7 @@ contract CWrappedNative is SToken, CErc20Storage {
         to.transfer(amount);
     }
 
-    function doFlashLoanTransferOut(address receiver, address wrapperToken, uint amount) internal {
+    function doFlashLoanTransferOut(address payable receiver, address wrapperToken, uint amount) internal {
         require(wrapperToken == underlying, "!token");
 
         IWETH nativeWrapper = IWETH(underlying);
@@ -199,6 +199,6 @@ contract CWrappedNative is SToken, CErc20Storage {
     }
 
     function() external payable {
-        require(msg.sender == underlying, "only wrapped native contract could send native token");
+        require(msg.sender == underlying, "!wrapped native");
     }
 }
