@@ -201,6 +201,11 @@ contract QsQuickLPDelegate is CErc20Delegate {
         require(false);
     }
 
+    function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint) {
+        reduceAmount;
+        require(false);
+    }
+
     /*** CToken Overrides ***/
 
     /**
@@ -241,8 +246,7 @@ contract QsQuickLPDelegate is CErc20Delegate {
      */
     function doTransferIn(address from, uint amount) internal returns (uint) {
         // Perform the EIP-20 transfer in
-        EIP20Interface token = EIP20Interface(underlying);
-        require(token.transferFrom(from, address(this), amount), "unexpected EIP-20 transfer in return");
+        super.doTransferIn(from, amount);
 
         // Deposit to staking pool.
         stakingRewards.stake(amount);
@@ -266,8 +270,7 @@ contract QsQuickLPDelegate is CErc20Delegate {
         // Withdraw the underlying tokens from staking pool.
         stakingRewards.withdraw(amount);
 
-        EIP20Interface token = EIP20Interface(underlying);
-        require(token.transfer(to, amount), "unexpected EIP-20 transfer out return");
+        super.doTransferOut(to, amount);
     }
 
     function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
@@ -277,10 +280,10 @@ contract QsQuickLPDelegate is CErc20Delegate {
         updateSupplierIndex(liquidator);
         updateSupplierIndex(borrower);
 
-        mintToFilda();
-
         address safetyVault = Qstroller(address(comptroller)).qsConfig().safetyVault();
         updateSupplierIndex(safetyVault);
+
+        mintToFilda();
 
         return super.seizeInternal(seizerToken, liquidator, borrower, seizeTokens);
     }
