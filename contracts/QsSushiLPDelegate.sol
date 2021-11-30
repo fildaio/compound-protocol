@@ -210,6 +210,11 @@ contract QsSushiLPDelegate is CErc20Delegate {
         require(false);
     }
 
+    function _reduceReserves(uint reduceAmount) external nonReentrant returns (uint) {
+        reduceAmount;
+        require(false);
+    }
+
     /*** CToken Overrides ***/
 
     /**
@@ -251,11 +256,12 @@ contract QsSushiLPDelegate is CErc20Delegate {
      */
     function doTransferIn(address from, uint amount) internal returns (uint) {
         // Perform the EIP-20 transfer in
-        EIP20Interface token = EIP20Interface(underlying);
-        require(token.transferFrom(from, address(this), amount), "!transfer");
+        super.doTransferIn(from, amount);
 
         // Deposit to sushi pool.
         sushiPool.deposit(pid, amount, address(this));
+
+        claimRewardsFromSushi();
 
         updateLPSupplyIndex();
         updateSupplierIndex(from);
@@ -273,9 +279,7 @@ contract QsSushiLPDelegate is CErc20Delegate {
     function doTransferOut(address payable to, uint amount) internal {
         // Withdraw the underlying tokens from sushi pool.
         sushiPool.withdraw(pid, amount, address(this));
-
-        EIP20Interface token = EIP20Interface(underlying);
-        require(token.transfer(to, amount), "!transfer");
+        super.doTransferOut(to, amount);
     }
 
     function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {
@@ -285,10 +289,10 @@ contract QsSushiLPDelegate is CErc20Delegate {
         updateSupplierIndex(liquidator);
         updateSupplierIndex(borrower);
 
-        mintToFilda();
-
         address safetyVault = Qstroller(address(comptroller)).qsConfig().safetyVault();
         updateSupplierIndex(safetyVault);
+
+        mintToFilda();
 
         return super.seizeInternal(seizerToken, liquidator, borrower, seizeTokens);
     }
