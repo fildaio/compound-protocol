@@ -8,6 +8,13 @@ import "../PriceOracle.sol";
 import "../EIP20Interface.sol";
 import "../Governance/GovernorAlpha.sol";
 import "../Governance/Comp.sol";
+import "../../QsMdxLPDelegate.sol";
+import "../../QsQuickDualLPDelegate.sol";
+import "../../QsQuickLPDelegate.sol";
+import "../../IStakingDualRewards.sol";
+import "../../IStakingRewards.sol";
+import "../../DragonLair.sol";
+import "../SafeMath.sol";
 
 interface ComptrollerLensInterface {
     function markets(address) external view returns (bool, uint);
@@ -19,6 +26,8 @@ interface ComptrollerLensInterface {
 }
 
 contract CompoundLens {
+    using SafeMath for uint256;
+
     struct CTokenMetadata {
         address cToken;
         uint exchangeRateCurrent;
@@ -331,6 +340,73 @@ contract CompoundLens {
         uint accrued = comptroller.compAccrued(account);
         uint total = add(accrued, newBalance, "sum comp total");
         allocated = sub(total, balance, "sub allocated");
+    }
+
+    function getLpRewardPending(QsMdxLPDelegate lpCtoken, address account) public returns (uint mdxReward, uint compReward) {
+        CErc20 mdx = CErc20(lpCtoken.mdx());
+        Comp comp = Comp(lpCtoken.comp());
+
+        uint mdxBalance = mdx.balanceOf(account);
+        uint compBalance = comp.balanceOf(account);
+
+        lpCtoken.claimMdx(account);
+        uint newMdxBalance = mdx.balanceOf(account);
+        uint newCompBalance = comp.balanceOf(account);
+
+        mdxReward = sub(newMdxBalance, mdxBalance, "sub allocated");
+        compReward = sub(newCompBalance, compBalance, "sub allocated");
+    }
+
+    function getLpRewardPending(address lpCtoken, uint8 rewardTokenCount, address account) public returns (uint[] memory rewards) {
+        QsQuickDualLPDelegate delegate = QsQuickDualLPDelegate(lpCtoken);
+
+        uint[] memory rewardTokensBalance = new uint[](rewardTokenCount);
+        for (uint8 i = 0; i < rewardTokenCount; i++) {
+            rewardTokensBalance[i] = CErc20(delegate.rewardsTokens(i)).balanceOf(account);
+        }
+
+        delegate.claimRewards(account);
+        rewards = new uint[](rewardTokenCount);
+        for (uint8 i = 0; i < rewardTokenCount; i++) {
+            rewards[i] = sub(CErc20(delegate.rewardsTokens(i)).balanceOf(account), rewardTokensBalance[i], "sub allocated");
+        }
+    }
+
+    function getQuickDualLpAPY(QsQuickDualLPDelegate lp, address dQUICK, uint priceA, uint priceB, uint priceLp) public view returns(uint apyA, uint apyB) {
+        IStakingDualRewards stakingRewards = lp.stakingRewards();
+        uint rewardRateA = stakingRewards.rewardRateA();
+        uint rewardRateB = stakingRewards.rewardRateB();
+
+        uint totalSupply = stakingRewards.totalSupply();
+
+        if (address(stakingRewards.rewardsTokenA()) == dQUICK) {
+            DragonLair lair = DragonLair(dQUICK);
+            rewardRateA = lair.dQUICKForQUICK(rewardRateA);
+        }
+
+        if (address(stakingRewards.rewardsTokenB()) == dQUICK) {
+            DragonLair lair = DragonLair(dQUICK);
+            rewardRateB = lair.dQUICKForQUICK(rewardRateB);
+        }
+
+        // 60 * 60 * 24 * 365 = 31536000
+        apyA = rewardRateA.mul(10000).mul(31536000).div(totalSupply).mul(priceA).div(priceLp);
+        apyB = rewardRateB.mul(10000).mul(31536000).div(totalSupply).mul(priceB).div(priceLp);
+    }
+
+    function getQuickLpAPY(QsQuickLPDelegate lp, address dQUICK, uint price, uint priceLp) public view returns(uint apy) {
+        IStakingRewards stakingRewards = lp.stakingRewards();
+        uint rewardRate = stakingRewards.rewardRate();
+
+        uint totalSupply = stakingRewards.totalSupply();
+
+        if (address(stakingRewards.rewardsToken()) == dQUICK) {
+            DragonLair lair = DragonLair(dQUICK);
+            rewardRate = lair.dQUICKForQUICK(rewardRate);
+        }
+
+        // 60 * 60 * 24 * 365 = 31536000
+        apy = rewardRate.mul(10000).mul(31536000).div(totalSupply).mul(price).div(priceLp);
     }
 
     struct CompVotes {
