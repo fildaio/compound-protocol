@@ -389,9 +389,9 @@ contract CompoundLens {
             rewardRateB = lair.dQUICKForQUICK(rewardRateB);
         }
 
-        // 60 * 60 * 24 * 365 = 31536000
-        apyA = rewardRateA.mul(10000).mul(31536000).div(totalSupply).mul(priceA).div(priceLp);
-        apyB = rewardRateB.mul(10000).mul(31536000).div(totalSupply).mul(priceB).div(priceLp);
+        // 60 * 60 * 24 = 86400
+        apyA = rewardRateA.mul(1e8).mul(86400).div(totalSupply).mul(priceA).div(priceLp);
+        apyB = rewardRateB.mul(1e8).mul(86400).div(totalSupply).mul(priceB).div(priceLp);
     }
 
     function getQuickLpAPY(QsQuickLPDelegate lp, address dQUICK, uint price, uint priceLp) public view returns(uint apy) {
@@ -405,8 +405,8 @@ contract CompoundLens {
             rewardRate = lair.dQUICKForQUICK(rewardRate);
         }
 
-        // 60 * 60 * 24 * 365 = 31536000
-        apy = rewardRate.mul(10000).mul(31536000).div(totalSupply).mul(price).div(priceLp);
+        // 60 * 60 * 24 = 86400
+        apy = rewardRate.mul(1e8).mul(86400).div(totalSupply).mul(price).div(priceLp);
     }
 
     struct CompVotes {
