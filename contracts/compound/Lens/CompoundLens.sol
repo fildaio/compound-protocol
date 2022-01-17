@@ -372,6 +372,7 @@ contract CompoundLens {
         }
     }
 
+    // The actual calculation is the daily periodic rate
     function getQuickDualLpAPY(QsQuickDualLPDelegate lp, address dQUICK, uint priceA, uint priceB, uint priceLp) public view returns(uint apyA, uint apyB) {
         IStakingDualRewards stakingRewards = lp.stakingRewards();
         uint rewardRateA = stakingRewards.rewardRateA();
@@ -394,6 +395,7 @@ contract CompoundLens {
         apyB = rewardRateB.mul(1e8).mul(86400).div(totalSupply).mul(priceB).div(priceLp);
     }
 
+    // The actual calculation is the daily periodic rate
     function getQuickLpAPY(QsQuickLPDelegate lp, address dQUICK, uint price, uint priceLp) public view returns(uint apy) {
         IStakingRewards stakingRewards = lp.stakingRewards();
         uint rewardRate = stakingRewards.rewardRate();
