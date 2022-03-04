@@ -11,8 +11,10 @@ import "../Governance/Comp.sol";
 import "../../QsMdxLPDelegate.sol";
 import "../../QsQuickDualLPDelegate.sol";
 import "../../QsQuickLPDelegate.sol";
+import "../../QsGlideLPDelegate.sol";
 import "../../IStakingDualRewards.sol";
 import "../../IStakingRewards.sol";
+import "../../MasterChef.sol";
 import "../../DragonLair.sol";
 import "../SafeMath.sol";
 
@@ -409,6 +411,22 @@ contract CompoundLens {
 
         // 60 * 60 * 24 = 86400
         apy = rewardRate.mul(1e8).mul(86400).div(totalSupply).mul(price).div(priceLp);
+    }
+
+    function getGlideLpAPR(QsGlideLPDelegate lp, uint pid, uint price, uint priceLp) public view returns(uint apr) {
+        MasterChef pool = lp.glidePool();
+        // reward per block
+        uint reward = pool.reward();
+
+        MasterChef.PoolInfo memory poolInfo = pool.poolInfo(pid);
+        uint totalAllocPoint = pool.totalAllocPoint();
+
+        // 5 seconds per block
+        // 60 * 60 * 24 / 5 = 17280
+        // 65% to user
+        reward = reward.mul(650).div(1000).mul(poolInfo.allocPoint).div(totalAllocPoint);
+
+        apr = reward.mul(1e8).mul(17280).div(poolInfo.lpSupply).mul(price).div(priceLp);
     }
 
     struct CompVotes {
