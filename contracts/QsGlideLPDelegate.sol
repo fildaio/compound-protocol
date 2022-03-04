@@ -5,32 +5,8 @@ import "./compound/CErc20Delegate.sol";
 import "./compound/EIP20Interface.sol";
 import "./Qstroller.sol";
 import "./FTokenStorage.sol";
+import "./MasterChef.sol";
 
-interface IRewarder {
-    function pendingTokens(uint256 pid, address user, uint256 sushiAmount) external view returns (EIP20Interface[] memory, uint256[] memory);
-}
-
-interface MasterChef {
-
-    struct UserInfo {
-        uint256 amount;
-        int256 rewardDebt;
-    }
-
-    struct PoolInfo {
-        EIP20Interface lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. GLIDEs to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that GLIDEs distribution occurs.
-        uint256 accGlidePerShare; // Accumulated GLIDEs per share, times 1e18. See below.
-        uint256 lpSupply;
-    }
-
-    function poolInfo(uint pid) external view returns(PoolInfo memory);
-    function deposit(uint256 pid, uint256 amount) external;
-    function withdraw(uint256 pid, uint256 amount) external;
-    function glide() view external returns (EIP20Interface);
-    function userInfo(uint256 pid, address account) view external returns (UserInfo memory);
-}
 
 /**
  * @title glide LP Contract
