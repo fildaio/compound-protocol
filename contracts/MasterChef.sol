@@ -25,4 +25,8 @@ interface MasterChef {
     function userInfo(uint256 pid, address account) view external returns (UserInfo memory);
     function reward() external view returns (uint256);
     function totalAllocPoint() external view returns (uint256);
+    function pendingGlide(uint256 _pid, address _user) external view returns (uint256);
+
+    function enterStaking(uint256 _amount) external;
+    function leaveStaking(uint256 _amount) external;
 }
