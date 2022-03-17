@@ -421,12 +421,17 @@ contract CompoundLens {
         MasterChef.PoolInfo memory poolInfo = pool.poolInfo(pid);
         uint totalAllocPoint = pool.totalAllocPoint();
 
+        MasterChef.PoolInfo memory stakeInfo = pool.poolInfo(0);
+
         // 5 seconds per block
         // 60 * 60 * 24 / 5 = 17280
         // 65% to user
-        reward = reward.mul(650).div(1000).mul(poolInfo.allocPoint).div(totalAllocPoint);
+        uint stakeReward = reward.mul(650).div(1000).mul(stakeInfo.allocPoint).div(totalAllocPoint);
+        uint farmReward = reward.mul(650).div(1000).mul(poolInfo.allocPoint).div(totalAllocPoint);
 
-        apr = reward.mul(1e8).mul(17280).div(poolInfo.lpSupply).mul(price).div(priceLp);
+        uint stakeApr = stakeReward.mul(1e8).mul(17280).div(stakeInfo.lpSupply);
+        uint farmApr = farmReward.mul(1e8).mul(17280).div(poolInfo.lpSupply).mul(price).div(priceLp);
+        apr = add(farmApr, farmApr.mul(stakeApr).div(1e8), "apr err");
     }
 
     struct CompVotes {
