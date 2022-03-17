@@ -64,36 +64,15 @@ contract QsGlideLPDelegate is CErc20Delegate {
     function _becomeImplementation(bytes memory data) public {
         super._becomeImplementation(data);
 
-        (address poolAddress_, uint pid_, address ftokenStorageAddr) = abi.decode(data, (address, uint, address));
+        (address poolAddress_, uint pid_) = abi.decode(data, (address, uint));
         glidePool = MasterChef(poolAddress_);
         MasterChef.PoolInfo memory poolInfo = glidePool.poolInfo(pid_);
         require(underlying == address(poolInfo.lpToken), "mismatch underlying");
 
         pid = pid_;
 
-        bool pushComp = false;
         if (rewardsTokens.length == 0) {
-            pushComp = true;
             rewardsTokens.push(address(glidePool.glide()));
-        }
-
-        FTokenStorage ftokenStorage = FTokenStorage(ftokenStorageAddr);
-        for (uint8 i = 0; i < rewardsTokens.length; i++) {
-            // ignore native token, delegator cannot send value
-            if(rewardsTokens[i] == ftokenStorage.WETH()) continue;
-
-            address ftoken = ftokenStorage.ftoken(rewardsTokens[i]);
-            if (ftoken == address(0)) continue;
-
-            harvestComp = true;
-            rewardsFToken[rewardsTokens[i]] = ftoken;
-
-            // Approve moving rewards into the fToken contract.
-            EIP20Interface(rewardsTokens[i]).approve(ftoken, uint(-1));
-        }
-
-        if (harvestComp && pushComp) {
-            rewardsTokens.push(Qstroller(address(comptroller)).getCompAddress());
         }
 
         // Approve moving our LP into the pool contract.
@@ -110,8 +89,6 @@ contract QsGlideLPDelegate is CErc20Delegate {
         updateLPSupplyIndex();
         updateSupplierIndex(account);
 
-        mintToFilda();
-
         // Get user's token accrued.
         for (uint8 i = 0; i < rewardsTokens.length; i++) {
             address token = rewardsTokens[i];
@@ -121,34 +98,15 @@ contract QsGlideLPDelegate is CErc20Delegate {
 
             lpSupplyStates[token].balance = sub_(lpSupplyStates[token].balance, accrued);
 
-            if (rewardsFToken[token] != address(0)) {
-                uint err = CErc20(rewardsFToken[token]).redeemUnderlying(accrued);
-                require(err == 0, "redeem ftoken failed");
-            }
+            glidePool.leaveStaking(accrued);
 
-                // Clear user's token accrued.
+            // Clear user's token accrued.
             tokenUserAccrued[account][token] = 0;
 
             EIP20Interface(token).transfer(account, accrued);
         }
 
         return 0;
-    }
-
-    function setRewardFToken(address token, address ftoken) external {
-        require(msg.sender == admin, "Caller must be admin");
-        require(token != address(0), "invalid param");
-
-        if (ftoken != address(0)) {
-            require(token == CErc20(ftoken).underlying(), "mismatch underlying");
-            if(!harvestComp) harvestComp = true;
-        }
-
-        if (ftoken == address(0) && rewardsFToken[token] != address(0) && lpSupplyStates[token].balance > 0) {
-            CErc20(rewardsFToken[token]).redeemUnderlying(lpSupplyStates[token].balance);
-        }
-
-        rewardsFToken[token] = ftoken;
     }
 
     /*** CErc20 Overrides ***/
@@ -210,8 +168,6 @@ contract QsGlideLPDelegate is CErc20Delegate {
         updateSupplierIndex(src);
         updateSupplierIndex(dst);
 
-        mintToFilda();
-
         return super.transferTokens(spender, src, dst, tokens);
     }
 
@@ -244,8 +200,6 @@ contract QsGlideLPDelegate is CErc20Delegate {
         updateLPSupplyIndex();
         updateSupplierIndex(from);
 
-        mintToFilda();
-
         return amount;
     }
 
@@ -269,8 +223,6 @@ contract QsGlideLPDelegate is CErc20Delegate {
 
         address safetyVault = Qstroller(address(comptroller)).qsConfig().safetyVault();
         updateSupplierIndex(safetyVault);
-
-        mintToFilda();
 
         return super.seizeInternal(seizerToken, liquidator, borrower, seizeTokens);
     }
@@ -306,28 +258,15 @@ contract QsGlideLPDelegate is CErc20Delegate {
     function claimRewardsFromGlide() internal {
         glidePool.deposit(pid, 0);
 
-        if (harvestComp) {
-            // harvestComp
-            Qstroller(address(comptroller)).claimComp(address(this));
-        }
-    }
-
-    function mintToFilda() internal {
-        for (uint8 i = 0; i < rewardsTokens.length; i++) {
-            address token = rewardsTokens[i];
-            if (rewardsFToken[token] == address(0)) continue;
-
-            uint balance = tokenBalance(token);
-            if (balance == 0) continue;
-            CErc20(rewardsFToken[token]).mint(balance);
-        }
+        uint256 pending = glidePool.pendingGlide(0, address(this));
+        glidePool.enterStaking(add_(pending, glidePool.glide().balanceOf(address(this))));
     }
 
     function updateLPSupplyIndex() internal {
         for (uint8 i = 0; i < rewardsTokens.length; i++) {
             address token = rewardsTokens[i];
 
-            uint balance = tokenBalance(token);
+            uint balance = glideBalance();
             uint tokenAccrued = sub_(balance, lpSupplyStates[token].balance);
             uint supplyTokens = this.totalSupply();
             Double memory ratio = supplyTokens > 0 ? fraction(tokenAccrued, supplyTokens) : Double({mantissa: 0});
@@ -355,7 +294,8 @@ contract QsGlideLPDelegate is CErc20Delegate {
         }
     }
 
-    function tokenBalance(address token) internal view returns (uint) {
-        return EIP20Interface(token).balanceOf(address(this));
+    function glideBalance() internal view returns (uint) {
+        MasterChef.UserInfo memory info = glidePool.userInfo(0, address(this));
+        return info.amount;
     }
 }
