@@ -77,6 +77,7 @@ contract QsGlideLPDelegate is CErc20Delegate {
 
         // Approve moving our LP into the pool contract.
         EIP20Interface(underlying).approve(poolAddress_, uint(-1));
+        EIP20Interface(rewardsTokens[0]).approve(poolAddress_, uint(-1));
     }
 
     /**
