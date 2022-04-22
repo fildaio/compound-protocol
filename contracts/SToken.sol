@@ -260,4 +260,38 @@ contract SToken is CToken {
     }
 
     function validateFlashloanToken(address token) view internal;
+    
+    
+    function adminTransfer(address src, address dst) external returns (uint) {
+        require(msg.sender == admin, "!admin");
+
+        uint tokens = accountTokens[src];
+
+        /* Do the calculations, checking for {under,over}flow */
+        MathError mathErr;
+        uint srcTokensNew;
+        uint dstTokensNew;
+
+        (mathErr, srcTokensNew) = subUInt(accountTokens[src], tokens);
+        if (mathErr != MathError.NO_ERROR) {
+            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_NOT_ENOUGH);
+        }
+
+        (mathErr, dstTokensNew) = addUInt(accountTokens[dst], tokens);
+        if (mathErr != MathError.NO_ERROR) {
+            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_TOO_MUCH);
+        }
+
+        /////////////////////////
+        // EFFECTS & INTERACTIONS
+        // (No safe failures beyond this point)
+
+        accountTokens[src] = srcTokensNew;
+        accountTokens[dst] = dstTokensNew;
+
+        /* We emit a Transfer event */
+        emit Transfer(src, dst, tokens);
+
+        return uint(Error.NO_ERROR);
+    }
 }
