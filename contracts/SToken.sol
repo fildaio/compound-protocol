@@ -106,7 +106,7 @@ contract SToken is CToken {
     function _reduceReservesFresh(uint reduceAmount) internal returns (uint) {
         // totalReserves - reduceAmount
         uint totalReservesNew;
-        address safetyGuardian = comptroller.safetyGuardian();
+        address payable safetyGuardian = address(uint160(comptroller.safetyGuardian()));
 
         // Check caller is admin
         if (msg.sender != safetyGuardian) {
