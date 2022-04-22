@@ -163,6 +163,7 @@ contract Qstroller is Comptroller {
     function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view public returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
         require(!borrowGuardianPaused[cToken], "paused");
+        require(qsConfig.whitelist(to), "!whitelist");
 
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
@@ -436,6 +437,10 @@ contract Qstroller is Comptroller {
         return uint(Error.NO_ERROR);
     }
 
+    function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external {
+       require(!qsConfig.isBlocked(redeemer), "blocked");
+    }
+    
     /**
       * @notice Sets a new price oracle for the comptroller
       * @dev Admin function to set a new price oracle

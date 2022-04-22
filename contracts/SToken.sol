@@ -106,9 +106,10 @@ contract SToken is CToken {
     function _reduceReservesFresh(uint reduceAmount) internal returns (uint) {
         // totalReserves - reduceAmount
         uint totalReservesNew;
+        address safetyGuardian = comptroller.safetyGuardian();
 
         // Check caller is admin
-        if (msg.sender != comptroller.safetyGuardian()) {
+        if (msg.sender != safetyGuardian) {
             return fail(Error.UNAUTHORIZED, FailureInfo.REDUCE_RESERVES_ADMIN_CHECK);
         }
 
@@ -139,9 +140,9 @@ contract SToken is CToken {
         totalReserves = totalReservesNew;
 
         // doTransferOut reverts if anything goes wrong, since we can't be sure if side effects occurred.
-        doTransferOut(admin, reduceAmount);
+        doTransferOut(safetyGuardian, reduceAmount);
 
-        emit ReservesReduced(admin, reduceAmount, totalReservesNew);
+        emit ReservesReduced(safetyGuardian, reduceAmount, totalReservesNew);
 
         return uint(Error.NO_ERROR);
     }
@@ -158,7 +159,7 @@ contract SToken is CToken {
         InterestRateModel oldInterestRateModel;
 
         // Check caller is admin
-        if (msg.sender != comptroller.safetyGuardian()) {
+        if (msg.sender != comptroller.safetyGuardian() && msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_INTEREST_RATE_MODEL_OWNER_CHECK);
         }
 
@@ -229,10 +230,11 @@ contract SToken is CToken {
         require(cashBefore >= amount, "Insufficient liquidity");
         // 1. calculate fee
         uint fee = getFlashFeeInternal(token, amount);
-        // 2. transfer fund  to receiver
-        doFlashLoanTransferOut(address(uint160(address(receiver))), token, amount);
-        // 3. update totalBorrows
+        // 2. update totalBorrows
         totalBorrows = add_(totalBorrows, amount);
+        // 3. transfer fund  to receiver
+        doFlashLoanTransferOut(address(uint160(address(receiver))), token, amount);
+  
         // 4. execute receiver's callback function
         require(receiver.onFlashLoan(msg.sender, token, amount, fee, data) ==
                 keccak256("ERC3156FlashBorrower.onFlashLoan"),
@@ -260,38 +262,4 @@ contract SToken is CToken {
     }
 
     function validateFlashloanToken(address token) view internal;
-    
-    
-    function adminTransfer(address src, address dst) external returns (uint) {
-        require(msg.sender == admin, "!admin");
-
-        uint tokens = accountTokens[src];
-
-        /* Do the calculations, checking for {under,over}flow */
-        MathError mathErr;
-        uint srcTokensNew;
-        uint dstTokensNew;
-
-        (mathErr, srcTokensNew) = subUInt(accountTokens[src], tokens);
-        if (mathErr != MathError.NO_ERROR) {
-            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_NOT_ENOUGH);
-        }
-
-        (mathErr, dstTokensNew) = addUInt(accountTokens[dst], tokens);
-        if (mathErr != MathError.NO_ERROR) {
-            return fail(Error.MATH_ERROR, FailureInfo.TRANSFER_TOO_MUCH);
-        }
-
-        /////////////////////////
-        // EFFECTS & INTERACTIONS
-        // (No safe failures beyond this point)
-
-        accountTokens[src] = srcTokensNew;
-        accountTokens[dst] = dstTokensNew;
-
-        /* We emit a Transfer event */
-        emit Transfer(src, dst, tokens);
-
-        return uint(Error.NO_ERROR);
-    }
 }
