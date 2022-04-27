@@ -111,7 +111,7 @@ contract Qstroller is Comptroller {
       */
     function borrowAllowed(address cToken, address borrower, uint borrowAmount) external returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
-        require(!borrowGuardianPaused[cToken], "paused");
+        require(!borrowGuardianPaused[cToken], "p");
 
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
@@ -119,7 +119,7 @@ contract Qstroller is Comptroller {
 
         if (!markets[cToken].accountMembership[borrower]) {
             // only cTokens may call borrowAllowed if borrower not in market
-            require(msg.sender == cToken, "!cToken");
+            require(msg.sender == cToken, "!c");
 
             // attempt to add borrower to the market
             Error err = addToMarketInternal(CToken(msg.sender), borrower);
@@ -140,8 +140,8 @@ contract Qstroller is Comptroller {
         if (borrowCap != 0) {
             uint totalBorrows = CToken(cToken).totalBorrows();
             (MathError mathErr, uint nextTotalBorrows) = addUInt(totalBorrows, borrowAmount);
-            require(mathErr == MathError.NO_ERROR, "overflow");
-            require(nextTotalBorrows < borrowCap, "cap reached");
+            require(mathErr == MathError.NO_ERROR, "o");
+            require(nextTotalBorrows < borrowCap, "c");
         }
 
         (Error err, , uint shortfall) = getHypotheticalAccountLiquidityInternal(borrower, CToken(cToken), 0, borrowAmount);
@@ -162,14 +162,15 @@ contract Qstroller is Comptroller {
 
     function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view public returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
-        require(!borrowGuardianPaused[cToken], "paused");
+        require(!borrowGuardianPaused[cToken], "p");
+        require(qsConfig.whitelist(to), "!w");
 
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
 
         uint flashLoanCap = qsConfig.getFlashLoanCap(cToken);
-        require(flashLoanAmount <= flashLoanCap, "cap reached");
+        require(flashLoanAmount <= flashLoanCap, "c");
 
         to;
 
@@ -382,7 +383,7 @@ contract Qstroller is Comptroller {
         address liquidator,
         address borrower,
         uint repayAmount) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 , "credit");
+        require(qsConfig.getCreditLimit(borrower) == 0 , "c");
 
         return super.liquidateBorrowAllowed(cTokenBorrowed, cTokenCollateral, liquidator, borrower, repayAmount);
     }
@@ -393,7 +394,7 @@ contract Qstroller is Comptroller {
         address liquidator,
         address borrower,
         uint seizeTokens) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 , "credit");
+        require(qsConfig.getCreditLimit(borrower) == 0 , "c");
 
         return super.seizeAllowed(cTokenCollateral, cTokenBorrowed, liquidator, borrower, seizeTokens);
     }
@@ -411,7 +412,7 @@ contract Qstroller is Comptroller {
         address payer,
         address borrower,
         uint repayAmount) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 || payer == borrower, "Payer != borrower");
+        require(qsConfig.getCreditLimit(borrower) == 0 || payer == borrower);
 
         return super.repayBorrowAllowed(cToken, payer, borrower, repayAmount);
     }
@@ -436,6 +437,10 @@ contract Qstroller is Comptroller {
         return uint(Error.NO_ERROR);
     }
 
+    function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external {
+       require(!qsConfig.isBlocked(redeemer), "b");
+    }
+
     /**
       * @notice Sets a new price oracle for the comptroller
       * @dev Admin function to set a new price oracle
@@ -443,18 +448,13 @@ contract Qstroller is Comptroller {
       */
     function _setPriceOracle(PriceOracle newOracle) external returns (uint) {
         // Check caller is admin
-        if (msg.sender != admin) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.SET_PRICE_ORACLE_OWNER_CHECK);
-        }
+        require(msg.sender == admin);
 
-        // Track the old oracle for the comptroller
-        PriceOracle oldOracle = oracle;
+        // Emit NewPriceOracle(oldOracle, newOracle)
+        emit NewPriceOracle(oracle, newOracle);
 
         // Set comptroller's oracle to newOracle
         oracle = newOracle;
-
-        // Emit NewPriceOracle(oldOracle, newOracle)
-        emit NewPriceOracle(oldOracle, newOracle);
 
         return uint(Error.NO_ERROR);
     }
