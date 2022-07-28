@@ -50,6 +50,8 @@ contract ComptrollerInterface {
         uint repayAmount) external view returns (uint, uint);
 
     function getLiquidationIncentive(address cTokenCollateral) public view returns (uint);
+
+    function safetyGuardian() external view returns (address);
 }
 
 // File: contracts/compound/InterestRateModel.sol
@@ -1209,16 +1211,16 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
                         string memory name_,
                         string memory symbol_,
                         uint8 decimals_) public {
-        require(msg.sender == admin, "only admin may initialize the market");
-        require(accrualBlockNumber == 0 && borrowIndex == 0, "market may only be initialized once");
+        require(msg.sender == admin, "!admin");
+        require(accrualBlockNumber == 0 && borrowIndex == 0, "!once");
 
         // Set initial exchange rate
         initialExchangeRateMantissa = initialExchangeRateMantissa_;
-        require(initialExchangeRateMantissa > 0, "initial exchange rate must be greater than zero.");
+        require(initialExchangeRateMantissa > 0, "zero");
 
         // Set the comptroller
         uint err = _setComptroller(comptroller_);
-        require(err == uint(Error.NO_ERROR), "setting comptroller failed");
+        require(err == uint(Error.NO_ERROR), "comptroller failed");
 
         // Initialize block number and borrow index (block number mocks depend on comptroller being set)
         accrualBlockNumber = getBlockNumber();
@@ -1226,7 +1228,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
 
         // Set the interest rate model (depends on block number / borrow index)
         err = _setInterestRateModelFresh(interestRateModel_);
-        require(err == uint(Error.NO_ERROR), "setting interest rate model failed");
+        require(err == uint(Error.NO_ERROR), "interest rate model failed");
 
         name = name_;
         symbol = symbol_;
@@ -1368,7 +1370,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
     function balanceOfUnderlying(address owner) external returns (uint) {
         Exp memory exchangeRate = Exp({mantissa: exchangeRateCurrent()});
         (MathError mErr, uint balance) = mulScalarTruncate(exchangeRate, accountTokens[owner]);
-        require(mErr == MathError.NO_ERROR, "balance could not be calculated");
+        require(mErr == MathError.NO_ERROR);
         return balance;
     }
 
@@ -1448,7 +1450,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
      */
     function borrowBalanceStored(address account) public view returns (uint) {
         (MathError err, uint result) = borrowBalanceStoredInternal(account);
-        require(err == MathError.NO_ERROR, "borrowBalanceStored: borrowBalanceStoredInternal failed");
+        require(err == MathError.NO_ERROR, "borrowBalanceStoredInternal failed");
         return result;
     }
 
@@ -1505,7 +1507,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
      */
     function exchangeRateStored() public view returns (uint) {
         (MathError err, uint result) = exchangeRateStoredInternal();
-        require(err == MathError.NO_ERROR, "exchangeRateStored: exchangeRateStoredInternal failed");
+        require(err == MathError.NO_ERROR, "exchangeRateStoredInternal failed");
         return result;
     }
 
@@ -1711,7 +1713,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
          */
 
         (vars.mathErr, vars.mintTokens) = divScalarByExpTruncate(vars.actualMintAmount, Exp({mantissa: vars.exchangeRateMantissa}));
-        require(vars.mathErr == MathError.NO_ERROR, "MINT_EXCHANGE_CALCULATION_FAILED");
+        require(vars.mathErr == MathError.NO_ERROR);
 
         /*
          * We calculate the new total supply of cTokens and minter token balance, checking for overflow:
@@ -1719,10 +1721,10 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
          *  accountTokensNew = accountTokens[minter] + mintTokens
          */
         (vars.mathErr, vars.totalSupplyNew) = addUInt(totalSupply, vars.mintTokens);
-        require(vars.mathErr == MathError.NO_ERROR, "MINT_NEW_TOTAL_SUPPLY_CALCULATION_FAILED");
+        require(vars.mathErr == MathError.NO_ERROR);
 
         (vars.mathErr, vars.accountTokensNew) = addUInt(accountTokens[minter], vars.mintTokens);
-        require(vars.mathErr == MathError.NO_ERROR, "MINT_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED");
+        require(vars.mathErr == MathError.NO_ERROR);
 
         /* We write previously calculated values into storage */
         totalSupply = vars.totalSupplyNew;
@@ -1786,7 +1788,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
     function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) internal returns (uint) {
-        require(redeemTokensIn == 0 || redeemAmountIn == 0, "one of redeemTokensIn or redeemAmountIn must be zero");
+        require(redeemTokensIn == 0 || redeemAmountIn == 0, "!zero");
 
         RedeemLocalVars memory vars;
 
@@ -2068,10 +2070,10 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
          *  totalBorrowsNew = totalBorrows - actualRepayAmount
          */
         (vars.mathErr, vars.accountBorrowsNew) = subUInt(vars.accountBorrows, vars.actualRepayAmount);
-        require(vars.mathErr == MathError.NO_ERROR, "REPAY_BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED");
+        require(vars.mathErr == MathError.NO_ERROR);
 
         (vars.mathErr, vars.totalBorrowsNew) = subUInt(totalBorrows, vars.actualRepayAmount);
-        require(vars.mathErr == MathError.NO_ERROR, "REPAY_BORROW_NEW_TOTAL_BALANCE_CALCULATION_FAILED");
+        require(vars.mathErr == MathError.NO_ERROR, "!totalBorrowsNew");
 
         /* We write the previously calculated values into storage */
         accountBorrows[borrower].principal = vars.accountBorrowsNew;
@@ -2163,10 +2165,10 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
 
         /* We calculate the number of collateral tokens that will be seized */
         (uint amountSeizeError, uint seizeTokens) = comptroller.liquidateCalculateSeizeTokens(address(this), address(cTokenCollateral), actualRepayAmount);
-        require(amountSeizeError == uint(Error.NO_ERROR), "LIQUIDATE_COMPTROLLER_CALCULATE_AMOUNT_SEIZE_FAILED");
+        require(amountSeizeError == uint(Error.NO_ERROR), "!seizeTokens");
 
         /* Revert if borrower collateral token balance < seizeTokens */
-        require(cTokenCollateral.balanceOf(borrower) >= seizeTokens, "LIQUIDATE_SEIZE_TOO_MUCH");
+        require(cTokenCollateral.balanceOf(borrower) >= seizeTokens);
 
         // If this is also the collateral, run seizeInternal to avoid re-entrancy, otherwise make an external call
         uint seizeError;
@@ -2244,7 +2246,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
       */
     function _acceptAdmin() external returns (uint) {
         // Check caller is pendingAdmin and pendingAdmin ≠ address(0)
-        if (msg.sender != pendingAdmin || msg.sender == address(0)) {
+        if (msg.sender != pendingAdmin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
         }
 
@@ -2277,7 +2279,7 @@ contract CToken is CTokenInterface, Exponential, TokenErrorReporter {
 
         ComptrollerInterface oldComptroller = comptroller;
         // Ensure invoke comptroller.isComptroller() returns true
-        require(newComptroller.isComptroller(), "marker method returned false");
+        require(newComptroller.isComptroller(), "!comptroller");
 
         // Set market's comptroller to newComptroller
         comptroller = newComptroller;
@@ -2819,7 +2821,7 @@ contract Unitroller is UnitrollerAdminStorage, ComptrollerErrorReporter {
       */
     function _acceptAdmin() public returns (uint) {
         // Check caller is pendingAdmin and pendingAdmin ≠ address(0)
-        if (msg.sender != pendingAdmin || msg.sender == address(0)) {
+        if (msg.sender != pendingAdmin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.ACCEPT_ADMIN_PENDING_ADMIN_CHECK);
         }
 
@@ -3802,6 +3804,14 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
     function getCompAddress() public view returns (address);
 }
 
+// File: contracts/ILiquidityGauge.sol
+
+pragma solidity ^0.5.16;
+
+interface ILiquidityGauge {
+    function notifySavingsChange(address addr) external;
+}
+
 // File: contracts/Ownable.sol
 
 pragma solidity ^0.5.16;
@@ -3845,7 +3855,6 @@ pragma solidity ^0.5.16;
 
 
 contract QsConfig is Ownable, Exponential {
-    bool public compSpeedGuardianPaused = true;
     address public compToken;
     uint public safetyVaultRatio;
     address public safetyVault;
@@ -3880,6 +3889,8 @@ contract QsConfig is Ownable, Exponential {
     mapping(address => uint) public creditLimits;
     uint public flashLoanFeeRatio = 0.0001e18;
 
+    ILiquidityGauge public liquidityGauge;
+
     event NewCompToken(address oldCompToken, address newCompToken);
     event NewSafetyVault(address oldSafetyVault, address newSafetyVault);
     event NewSafetyVaultRatio(uint oldSafetyVaultRatio, uint newSafetyVault);
@@ -3900,13 +3911,25 @@ contract QsConfig is Ownable, Exponential {
     /// @notice Emitted when flash loan for a cToken is changed
     event NewFlashLoanCap(address indexed cToken, uint newFlashLoanCap);
 
-    constructor(QsConfig previousQsConfig) public {
-        if (address(previousQsConfig) == address(0x0)) return;
+    event NewPendingSafetyGuardian(address oldPendingSafetyGuardian, address newPendingSafetyGuardian);
 
+    event NewSafetyGuardian(address oldSafetyGuardian, address newSafetyGuardian);
+
+    event NewLiquidityGauge(address oldLiquidityGauge, address newLiquidityGauage);
+
+    modifier onlySafetyGuardian {
+        require(msg.sender == safetyGuardian, "Safety guardian required.");
+        _;
+    }
+
+    constructor(QsConfig previousQsConfig) public {
+        safetyGuardian = msg.sender;
+        if (address(previousQsConfig) == address(0x0)) return;
+       
+        safetyGuardian = previousQsConfig.safetyGuardian();
         compToken = previousQsConfig.compToken();
         safetyVaultRatio = previousQsConfig.safetyVaultRatio();
         safetyVault = previousQsConfig.safetyVault();
-        safetyGuardian = msg.sender;
     }
 
     /**
@@ -3915,7 +3938,7 @@ contract QsConfig is Ownable, Exponential {
       * @param cTokens The addresses of the markets (tokens) to change the borrow caps for
       * @param newBorrowCaps The new borrow cap values in underlying to be set. A value of 0 corresponds to unlimited borrowing.
       */
-    function _setMarketBorrowCaps(address[] calldata cTokens, uint[] calldata newBorrowCaps) external onlyOwner {
+    function _setMarketBorrowCaps(address[] calldata cTokens, uint[] calldata newBorrowCaps) external onlySafetyGuardian {
         uint numMarkets = cTokens.length;
         uint numBorrowCaps = newBorrowCaps.length;
 
@@ -3933,7 +3956,7 @@ contract QsConfig is Ownable, Exponential {
      * @param cTokens The addresses of the markets (tokens) to change the flash loan caps for
      * @param newFlashLoanCaps The new flash loan cap values in underlying to be set. A value of 0 corresponds to unlimited flash loan.
      */
-    function _setMarketFlashLoanCaps(address[] calldata cTokens, uint[] calldata newFlashLoanCaps) external onlyOwner {
+    function _setMarketFlashLoanCaps(address[] calldata cTokens, uint[] calldata newFlashLoanCaps) external onlySafetyGuardian {
         uint numMarkets = cTokens.length;
         uint numFlashLoanCaps = newFlashLoanCaps.length;
 
@@ -3951,7 +3974,7 @@ contract QsConfig is Ownable, Exponential {
      * @param cTokens The addresses of the markets (tokens) to change the supply caps for
      * @param newSupplyCaps The new supply cap values in underlying to be set. A value of 0 corresponds to unlimited supplying.
      */
-    function _setMarketSupplyCaps(address[] calldata cTokens, uint[] calldata newSupplyCaps) external onlyOwner {
+    function _setMarketSupplyCaps(address[] calldata cTokens, uint[] calldata newSupplyCaps) external onlySafetyGuardian {
         uint numMarkets = cTokens.length;
         uint numSupplyCaps = newSupplyCaps.length;
 
@@ -3967,8 +3990,9 @@ contract QsConfig is Ownable, Exponential {
      * @param protocol The address of the protocol
      * @param creditLimit The credit limit
      */
-    function _setCreditLimit(address protocol, uint creditLimit) public {
-        require(msg.sender == owner(), "only owner can set protocol credit limit");
+    function _setCreditLimit(address protocol, uint creditLimit) public onlyOwner {
+        require(isContract(protocol), "contract required");
+        require(creditLimits[protocol] != creditLimit, "no change");
 
         creditLimits[protocol] = creditLimit;
         emit CreditLimitChanged(protocol, creditLimit);
@@ -3986,28 +4010,31 @@ contract QsConfig is Ownable, Exponential {
         emit NewSafetyVault(oldSafetyVault, safetyVault);
     }
 
-    function _setSafetyVaultRatio(uint _safetyVaultRatio) public onlyOwner {
+    function _setSafetyVaultRatio(uint _safetyVaultRatio) public onlySafetyGuardian {
+        require(_safetyVaultRatio < 1e18, "!safetyVaultRatio");
+
         uint oldSafetyVaultRatio = safetyVaultRatio;
         safetyVaultRatio = _safetyVaultRatio;
         emit NewSafetyVaultRatio(oldSafetyVaultRatio, safetyVaultRatio);
     }
-    
-    function _setCompSpeedGuardianPaused(bool state) public onlyOwner returns (bool) {
-        compSpeedGuardianPaused = state;
-        return state;
-    }
 
-    function _setPendingSafetyGuardian(address newPendingSafetyGuardian) external {
-        require(msg.sender == safetyGuardian, "!safetyGuardian");
-
+    function _setPendingSafetyGuardian(address newPendingSafetyGuardian) external onlyOwner {
+        address oldPendingSafetyGuardian = pendingSafetyGuardian;
         pendingSafetyGuardian = newPendingSafetyGuardian;
+
+        emit NewPendingSafetyGuardian(oldPendingSafetyGuardian, newPendingSafetyGuardian);
     }
 
     function _acceptSafetyGuardian() external {
         require(msg.sender == pendingSafetyGuardian, "!pendingSafetyGuardian");
 
+        address oldPendingSafetyGuardian = pendingSafetyGuardian;
+        address oldSafetyGuardian = safetyGuardian;
         safetyGuardian = pendingSafetyGuardian;
         pendingSafetyGuardian = address(0x0);
+
+        emit NewSafetyGuardian(oldSafetyGuardian, safetyGuardian);
+        emit NewPendingSafetyGuardian(oldPendingSafetyGuardian, pendingSafetyGuardian);
     }
 
     function getCreditLimit(address protocol) external view returns (uint) {
@@ -4043,17 +4070,17 @@ contract QsConfig is Ownable, Exponential {
         governanceAmount = sub_(userAccrued, userAmount);
     }
 
-    function getFlashFee(address borrower, address token, uint256 amount) external view returns (uint flashFee) {
+    function getFlashFee(address borrower, address cToken, uint256 amount) external view returns (uint flashFee) {
         if (whitelist[borrower]) {
             return 0;
         }
         Exp memory flashLoanFeeRatioExp = Exp({mantissa:flashLoanFeeRatio});
         (, flashFee) = mulScalarTruncate(flashLoanFeeRatioExp, amount);
 
-        token;
+        cToken;
     }
 
-    function _setCompRatio(uint _compRatio) public onlyOwner {
+    function _setCompRatio(uint _compRatio) public onlySafetyGuardian {
         require(_compRatio < 1e18, "compRatio should be less then 100%");
         uint oldCompRatio = compRatio;
         compRatio = _compRatio;
@@ -4065,35 +4092,35 @@ contract QsConfig is Ownable, Exponential {
         return blacklist[user];
     }
 
-    function _addToWhitelist(address _member) public onlyOwner {
+    function _addToWhitelist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         whitelist[_member] = true;
 
         emit WhitelistChange(_member, true);
     }
 
-    function _removeFromWhitelist(address _member) public onlyOwner {
+    function _removeFromWhitelist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         whitelist[_member] = false;
 
         emit WhitelistChange(_member, false);
     }
 
-    function _addToBlacklist(address _member) public onlyOwner {
+    function _addToBlacklist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         blacklist[_member] = true;
 
         emit BlacklistChange(_member, true);
     }
 
-    function _removeFromBlacklist(address _member) public onlyOwner {
+    function _removeFromBlacklist(address _member) public onlySafetyGuardian {
         require(_member != address(0x0), "Zero address is not allowed");
         blacklist[_member] = false;
 
         emit BlacklistChange(_member, false);
     }
 
-    function _setFlashLoanFeeRatio(uint _feeRatio) public onlyOwner {
+    function _setFlashLoanFeeRatio(uint _feeRatio) public onlySafetyGuardian {
         require(_feeRatio != flashLoanFeeRatio, "Same fee ratio already set");
         require(_feeRatio < 1e18, "Invalid fee ratio");
 
@@ -4101,6 +4128,12 @@ contract QsConfig is Ownable, Exponential {
         flashLoanFeeRatio = _feeRatio;
 
         emit FlashLoanFeeRatioChanged(oldFeeRatio, flashLoanFeeRatio);
+    }
+
+    function _setliquidityGauge(ILiquidityGauge _liquidityGauge) external onlySafetyGuardian {
+        emit NewLiquidityGauge(address(liquidityGauge), address(_liquidityGauge));
+
+        liquidityGauge = _liquidityGauge;
     }
 
     function isContract(address account) internal view returns (bool) {
@@ -4170,21 +4203,32 @@ contract Qstroller is Comptroller {
         
         require(_allMarkets.length == _compSpeeds.length);
 
-        uint _compRate = 0;
         for (uint i = 0; i < _allMarkets.length; i++) {
-            address cToken = _allMarkets[i];
-            Market storage market = markets[cToken];
-            if (market.isComped == false) {
-                _addCompMarketInternal(cToken);
-            }
-            compSpeeds[cToken] = _compSpeeds[i];
-            uint supplySpeed = _compSpeeds[i] >> 128;
-            uint borrowSpeed = uint128(_compSpeeds[i]);
-            uint compSpeed = add_(supplySpeed, borrowSpeed);
-            _compRate = add_(_compRate, compSpeed);
+            _setCompSpeedInternal(_allMarkets[i], _compSpeeds[i]);
         }
-        compRate = _compRate;
     }
+
+    function _setCompSpeedInternal(address _cToken, uint _compSpeed) internal {
+        Market storage market = markets[_cToken];
+        if (market.isComped == false) {
+             _addCompMarketInternal(_cToken);
+        }
+        uint currentCompSpeed = compSpeeds[_cToken];
+        uint currentSupplySpeed = currentCompSpeed >> 128;
+        uint currentBorrowSpeed = uint128(currentCompSpeed);
+
+        uint newSupplySpeed = _compSpeed >> 128;
+        uint newBorrowSpeed = uint128(_compSpeed);
+        if (currentSupplySpeed != newSupplySpeed) {
+            updateCompSupplyIndex(_cToken);
+        }
+        if (currentBorrowSpeed != newBorrowSpeed) {
+            Exp memory borrowIndex = Exp({mantissa: CToken(_cToken).borrowIndex()});
+            updateCompBorrowIndex(_cToken, borrowIndex);
+        }
+        compSpeeds[_cToken] = _compSpeed;
+    }
+
 
     function getCompAddress() public view returns (address) {
         return qsConfig.compToken();
@@ -4218,7 +4262,7 @@ contract Qstroller is Comptroller {
       */
     function borrowAllowed(address cToken, address borrower, uint borrowAmount) external returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
-        require(!borrowGuardianPaused[cToken], "paused");
+        require(!borrowGuardianPaused[cToken], "p");
 
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
@@ -4226,7 +4270,7 @@ contract Qstroller is Comptroller {
 
         if (!markets[cToken].accountMembership[borrower]) {
             // only cTokens may call borrowAllowed if borrower not in market
-            require(msg.sender == cToken, "!cToken");
+            require(msg.sender == cToken, "!c");
 
             // attempt to add borrower to the market
             Error err = addToMarketInternal(CToken(msg.sender), borrower);
@@ -4247,8 +4291,8 @@ contract Qstroller is Comptroller {
         if (borrowCap != 0) {
             uint totalBorrows = CToken(cToken).totalBorrows();
             (MathError mathErr, uint nextTotalBorrows) = addUInt(totalBorrows, borrowAmount);
-            require(mathErr == MathError.NO_ERROR, "overflow");
-            require(nextTotalBorrows < borrowCap, "cap reached");
+            require(mathErr == MathError.NO_ERROR, "o");
+            require(nextTotalBorrows < borrowCap, "c");
         }
 
         (Error err, , uint shortfall) = getHypotheticalAccountLiquidityInternal(borrower, CToken(cToken), 0, borrowAmount);
@@ -4267,19 +4311,17 @@ contract Qstroller is Comptroller {
         return uint(Error.NO_ERROR);
     }
 
-    function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view external returns (uint) {
+    function flashLoanAllowed(address cToken, address to, uint256 flashLoanAmount) view public returns (uint) {
         // Pausing is a very serious situation - we revert to sound the alarms
-        require(!borrowGuardianPaused[cToken], "paused");
+        require(!borrowGuardianPaused[cToken], "p");
+        require(qsConfig.whitelist(to), "!w");
 
         if (!markets[cToken].isListed) {
             return uint(Error.MARKET_NOT_LISTED);
         }
 
         uint flashLoanCap = qsConfig.getFlashLoanCap(cToken);
-        // FlashLoan cap of 0 corresponds to unlimited flash loan
-        if (flashLoanCap != 0) {
-            require(flashLoanAmount <= flashLoanCap, "cap reached");
-        }
+        require(flashLoanAmount <= flashLoanCap, "c");
 
         to;
 
@@ -4314,12 +4356,12 @@ contract Qstroller is Comptroller {
 
         // Supply cap of 0 corresponds to unlimited borrowing
         if (supplyCap != 0) {
-            Exp memory exchangeRate = Exp({mantissa: CTokenInterface(cToken).exchangeRateCurrent()});
+            Exp memory exchangeRate = Exp({mantissa: CTokenInterface(cToken).exchangeRateStored()});
             (MathError mErr, uint totalSupplyUnderlying) = mulScalarTruncate(exchangeRate, EIP20Interface(cToken).totalSupply());
             require(mErr == MathError.NO_ERROR);
             (MathError mathErr, uint nextTotalSupplyUnderlying) = addUInt(totalSupplyUnderlying, mintAmount);
             require(mathErr == MathError.NO_ERROR);
-            require(nextTotalSupplyUnderlying <= supplyCap, "cap reached");
+            require(nextTotalSupplyUnderlying <= supplyCap, ">cap");
         }
 
         // Keep the flywheel moving
@@ -4334,9 +4376,9 @@ contract Qstroller is Comptroller {
   */
     function updateCompSupplyIndex(address cToken) internal {
         CompMarketState storage supplyState = compSupplyState[cToken];
-        uint supplySpeed = compSpeeds[cToken];
+        uint compSpeed = compSpeeds[cToken];
         // use first 128 bit as supplySpeed
-        supplySpeed = supplySpeed >> 128 == 0 ? supplySpeed : supplySpeed >> 128;
+        uint supplySpeed = compSpeed >> 128;
         uint blockNumber = getBlockNumber();
         uint deltaBlocks = sub_(blockNumber, uint(supplyState.block));
         if (deltaBlocks > 0 && supplySpeed > 0) {
@@ -4345,11 +4387,11 @@ contract Qstroller is Comptroller {
             Double memory ratio = supplyTokens > 0 ? fraction(compAccrued, supplyTokens) : Double({mantissa: 0});
             Double memory index = add_(Double({mantissa: supplyState.index}), ratio);
             compSupplyState[cToken] = CompMarketState({
-            index: safe224(index.mantissa, " 224bits"),
-            block: safe32(blockNumber, "> 32bits")
+            index: safe224(index.mantissa, ">224bits"),
+            block: safe32(blockNumber, ">32bits")
             });
         } else if (deltaBlocks > 0 && supplyState.index > 0) {
-            supplyState.block = safe32(blockNumber, "> 32bits");
+            supplyState.block = safe32(blockNumber, ">32bits");
         }
     }
 
@@ -4369,11 +4411,11 @@ contract Qstroller is Comptroller {
             Double memory ratio = borrowAmount > 0 ? fraction(compAccrued, borrowAmount) : Double({mantissa: 0});
             Double memory index = add_(Double({mantissa: borrowState.index}), ratio);
             compBorrowState[cToken] = CompMarketState({
-            index: safe224(index.mantissa, "> 224bits"),
-            block: safe32(blockNumber, "> 32bits")
+            index: safe224(index.mantissa, ">224bits"),
+            block: safe32(blockNumber, ">32bits")
             });
         } else if (deltaBlocks > 0 && borrowState.index > 0) {
-            borrowState.block = safe32(blockNumber, "> 32bits");
+            borrowState.block = safe32(blockNumber, ">32bits");
         }
     }
 
@@ -4492,7 +4534,7 @@ contract Qstroller is Comptroller {
         address liquidator,
         address borrower,
         uint repayAmount) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 , "credit account");
+        require(qsConfig.getCreditLimit(borrower) == 0 , "c");
 
         return super.liquidateBorrowAllowed(cTokenBorrowed, cTokenCollateral, liquidator, borrower, repayAmount);
     }
@@ -4503,7 +4545,7 @@ contract Qstroller is Comptroller {
         address liquidator,
         address borrower,
         uint seizeTokens) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 , "credit account");
+        require(qsConfig.getCreditLimit(borrower) == 0 , "c");
 
         return super.seizeAllowed(cTokenCollateral, cTokenBorrowed, liquidator, borrower, seizeTokens);
     }
@@ -4521,13 +4563,13 @@ contract Qstroller is Comptroller {
         address payer,
         address borrower,
         uint repayAmount) public returns (uint) {
-        require(qsConfig.getCreditLimit(borrower) == 0 || payer == borrower, "Payer != borrower");
+        require(qsConfig.getCreditLimit(borrower) == 0 || payer == borrower);
 
         return super.repayBorrowAllowed(cToken, payer, borrower, repayAmount);
     }
 
     function _supportMarket(CToken cToken) external returns (uint) {
-        if (msg.sender != qsConfig.safetyGuardian()) {
+        if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SUPPORT_MARKET_OWNER_CHECK);
         }
 
@@ -4546,6 +4588,10 @@ contract Qstroller is Comptroller {
         return uint(Error.NO_ERROR);
     }
 
+    function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external {
+       require(!qsConfig.isBlocked(redeemer), "b");
+    }
+
     /**
       * @notice Sets a new price oracle for the comptroller
       * @dev Admin function to set a new price oracle
@@ -4553,19 +4599,19 @@ contract Qstroller is Comptroller {
       */
     function _setPriceOracle(PriceOracle newOracle) external returns (uint) {
         // Check caller is admin
-        if (msg.sender != qsConfig.safetyGuardian()) {
-            return fail(Error.UNAUTHORIZED, FailureInfo.SET_PRICE_ORACLE_OWNER_CHECK);
-        }
+        require(msg.sender == admin);
 
-        // Track the old oracle for the comptroller
-        PriceOracle oldOracle = oracle;
+        // Emit NewPriceOracle(oldOracle, newOracle)
+        emit NewPriceOracle(oracle, newOracle);
 
         // Set comptroller's oracle to newOracle
         oracle = newOracle;
 
-        // Emit NewPriceOracle(oldOracle, newOracle)
-        emit NewPriceOracle(oldOracle, newOracle);
-
         return uint(Error.NO_ERROR);
     }
+
+    function safetyGuardian() external view returns (address) {
+        return qsConfig.safetyGuardian();
+    }
+
 }

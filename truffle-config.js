@@ -42,9 +42,10 @@ module.exports = {
     //
     development: {
      host: "127.0.0.1",     // Localhost (default: none)
-     port: 7545,            // Standard Ethereum port (default: none)
-     network_id: "5777",       // Any network (default: none)
-        gas: 80000000
+     port: 8645,            // Standard Ethereum port (default: none)
+     network_id: "20",       // Any network (default: none)
+    //  gas: 8000000,
+     gasPrice: 3000000000,
     },
     elalocal: {
       host: "127.0.0.1",
@@ -86,23 +87,6 @@ module.exports = {
       // network_id: 2111,   // This network is yours, in the cloud.
       // production: true    // Treats this network as if it was a public net. (default: false)
     // }
-      ethdev: {
-          provider: () => new HDWalletProvider(mnemonic, `http://18.162.230.88/ethdev`),
-          network_id: 1337,   // This network is yours, in the cloud.
-          production: false,    // Treats this network as if it was a public net. (default: false)
-          timeoutBlocks: 200,
-          skipDryRun: true,
-          networkCheckTimeout: 100000000
-      },
-
-      eladev: {
-          provider: () => new HDWalletProvider(mnemonic, `http://18.162.230.88/ethdev`),
-          network_id: 1337,
-          production: false,
-          timeoutBlocks: 200,
-          skipDryRun: true,
-          networkCheckTimeout: 100000000
-      },
 
       elatest: {
           provider: () => new HDWalletProvider(mnemonic, `https://rpc.elaeth.io`),
@@ -114,14 +98,35 @@ module.exports = {
       },
 
       elaeth: {
-          provider: () => new HDWalletProvider(mnemonic, `https://mainrpc.elaeth.io`),
+          provider: () => new HDWalletProvider(mnemonic, `wss://escnode.filda.org`),
           network_id: "20",   // This network is yours, in the cloud.
           timeoutBlocks: 200,
           confirmations: 2,
           gasPrice: 5000000000,
           skipDryRun: true,
+          websockets: true,
           networkCheckTimeout: 100000000
       },
+
+    escfork: {
+        provider: () => new HDWalletProvider(mnemonic, `https://testnode.filda.org`),
+        network_id: "20",   // This network is yours, in the cloud.
+        timeoutBlocks: 200,
+        confirmations: 2,
+        gasPrice: 5000000000,
+        skipDryRun: true,
+        websockets: true,
+        networkCheckTimeout: 100000000
+    },
+    localesc: {
+      provider: () => new HDWalletProvider(mnemonic, `http://127.0.0.1:8545`),
+      network_id: "20",   // This network is yours, in the cloud.
+      timeoutBlocks: 200,
+      confirmations: 2,
+      gasPrice: 5000000000,
+      skipDryRun: true,
+      networkCheckTimeout: 100000000
+  },
 
       hecotest: {
           provider: () => new HDWalletProvider(mnemonic, `wss://ws-testnet.hecochain.com`),
@@ -135,14 +140,14 @@ module.exports = {
       },
 
       heco: {
-          provider: () => new HDWalletProvider(mnemonic, `wss://ws-mainnet.hecochain.com`),
+          provider: () => new HDWalletProvider(mnemonic, `https://heconode.ifoobar.com`),
           network_id: "128",   // This network is yours, in the cloud.
           timeoutBlocks: 200,
           confirmations: 2,
           gasPrice: 2500000000,
           skipDryRun: true,
           networkCheckTimeout: 100000000,
-          websockets: true
+          //websockets: true
       },
 
       arbitrum: {
@@ -172,7 +177,7 @@ module.exports = {
       },
 
       bsctest: {
-          provider: () => new HDWalletProvider(mnemonic, `ws://1.117.32.127/wsbsc/`),
+          provider: () => new HDWalletProvider(mnemonic, `https://data-seed-prebsc-2-s3.binance.org:8545/`),
           network_id: "97",
           timeoutBlocks: 600,
           //confirmations: 2,
@@ -182,7 +187,9 @@ module.exports = {
           websockets: true
       },
       bsc: {
-          provider: () => new HDWalletProvider(mnemonic, `wss://bsc-ws-node.nariox.org:443`),
+          // provider: () => new HDWalletProvider(mnemonic, `wss://speedy-nodes-nyc.moralis.io/50d91e85ea901f0b2e54edeb/bsc/mainnet/ws`),
+          //provider: () => new HDWalletProvider(mnemonic, `https://bsc-dataseed1.defibit.io/`),
+          provider: () => new HDWalletProvider(mnemonic, `https://bscnode.filda.io`),
           network_id: "56",
           timeoutBlocks: 600,
           //confirmations: 2,
@@ -202,15 +209,81 @@ module.exports = {
           websockets: true
       },
       matic: {
-          provider: () => new HDWalletProvider(mnemonic, `wss://ws-matic-mainnet.chainstacklabs.com`),
+          // provider: () => new HDWalletProvider(mnemonic, `wss://rpc-mainnet.matic.quiknode.pro`),
+          provider: () => new HDWalletProvider(mnemonic, `https://matic-mainnet.chainstacklabs.com`),
           network_id: "137",
           chain_id: "137",
-          timeoutBlocks: 600,
+          timeoutBlocks: 60,
           //confirmations: 2,
-          gasPrice: 3000000000,
+          gasPrice: 1237433976546,
           skipDryRun: false,
-          networkCheckTimeout: 600000000,
-          websockets: true
+          networkCheckTimeout: 100000,
+          // websockets: true
+      },
+      IoTeXTest: {
+        // provider: () => new HDWalletProvider(mnemonic, `https://babel-api.testnet.iotex.io`),
+        provider: () => new HDWalletProvider(mnemonic, `wss://babel-api.testnet.iotex.io`),
+        network_id: "4690",
+        chain_id: "4690",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 1000000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: false
+      },
+      IoTeX: {
+        // provider: () => new HDWalletProvider(mnemonic, `https://babel-api.mainnet.iotex.io`),
+        provider: () => new HDWalletProvider(mnemonic, `wss://babel-api.mainnet.iotex.io`),
+        // provider: () => new HDWalletProvider(mnemonic, `https://iotexnode.filda.io`),
+        network_id: "4689",
+        chain_id: "4689",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 1000000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: true
+      },
+      auroratest: {
+        // provider: () => new HDWalletProvider(mnemonic, `https://testnet.aurora.dev`),
+        provider: () => new HDWalletProvider(mnemonic, `wss://testnet.aurora.dev`),
+        network_id: "1313161555",
+        chain_id: "1313161555",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 1,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: true
+      },
+      aurora: {
+        // provider: () => new HDWalletProvider(mnemonic, `https://testnet.aurora.dev`),
+        provider: () => new HDWalletProvider(mnemonic, `wss://mainnet.aurora.dev`),
+        network_id: "1313161554",
+        chain_id: "1313161554",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 0,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: true
+      },
+      rei: {
+        provider: () => new HDWalletProvider(mnemonic, `wss://rpc.rei.network/`),
+        network_id: "47805",
+        chain_id: "47805",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 10000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: true
       },
   },
   plugins: ["truffle-contract-size"],

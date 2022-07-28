@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-import "./compound/Unitroller.sol";
+import "./ILiquidityGauge.sol";
 import "./compound/Exponential.sol";
 import "./Ownable.sol";
 
@@ -39,6 +39,8 @@ contract QsConfig is Ownable, Exponential {
     mapping(address => uint) public creditLimits;
     uint public flashLoanFeeRatio = 0.0001e18;
 
+    ILiquidityGauge public liquidityGauge;
+
     event NewCompToken(address oldCompToken, address newCompToken);
     event NewSafetyVault(address oldSafetyVault, address newSafetyVault);
     event NewSafetyVaultRatio(uint oldSafetyVaultRatio, uint newSafetyVault);
@@ -63,6 +65,8 @@ contract QsConfig is Ownable, Exponential {
 
     event NewSafetyGuardian(address oldSafetyGuardian, address newSafetyGuardian);
 
+    event NewLiquidityGauge(address oldLiquidityGauge, address newLiquidityGauage);
+
     modifier onlySafetyGuardian {
         require(msg.sender == safetyGuardian, "Safety guardian required.");
         _;
@@ -71,7 +75,8 @@ contract QsConfig is Ownable, Exponential {
     constructor(QsConfig previousQsConfig) public {
         safetyGuardian = msg.sender;
         if (address(previousQsConfig) == address(0x0)) return;
-
+       
+        safetyGuardian = previousQsConfig.safetyGuardian();
         compToken = previousQsConfig.compToken();
         safetyVaultRatio = previousQsConfig.safetyVaultRatio();
         safetyVault = previousQsConfig.safetyVault();
@@ -273,6 +278,12 @@ contract QsConfig is Ownable, Exponential {
         flashLoanFeeRatio = _feeRatio;
 
         emit FlashLoanFeeRatioChanged(oldFeeRatio, flashLoanFeeRatio);
+    }
+
+    function _setliquidityGauge(ILiquidityGauge _liquidityGauge) external onlySafetyGuardian {
+        emit NewLiquidityGauge(address(liquidityGauge), address(_liquidityGauge));
+
+        liquidityGauge = _liquidityGauge;
     }
 
     function isContract(address account) internal view returns (bool) {

@@ -3,7 +3,7 @@ pragma solidity ^0.5.16;
 import "./compound/CToken.sol";
 import "./Qstroller.sol";
 import "./IERC3156FlashBorrower.sol";
-import "./IWETH.sol";
+import "./ILiquidityGauge.sol";
 
 contract SToken is CToken {
     struct LiquidationLocalVars {
@@ -12,6 +12,41 @@ contract SToken is CToken {
         uint safetyVaultTokensNew;
         uint safetyVaultTokens;
         uint liquidatorSeizeTokens;
+    }
+
+    function mintFresh(address minter, uint mintAmount) internal returns (uint, uint) {
+        (uint mintError, uint actualMintAmount) = super.mintFresh(minter, mintAmount);
+
+        if (mintError == uint(Error.NO_ERROR)) {
+            notifySavingsChange(minter);
+        }
+        return (mintError, actualMintAmount);
+    }
+
+    function redeemFresh(address payable redeemer, uint redeemTokensIn, uint redeemAmountIn) internal returns (uint) {
+        uint redeemError = super.redeemFresh(redeemer, redeemTokensIn, redeemAmountIn);
+
+        if (redeemError == uint(Error.NO_ERROR)) {
+            notifySavingsChange(redeemer);
+        }
+        return redeemError;
+    }
+
+    function notifySavingsChange(address addr) internal {
+        QsConfig qsConfig = Qstroller(address(comptroller)).qsConfig();
+        ILiquidityGauge liquidityGauge = qsConfig.liquidityGauge();
+        if (address(liquidityGauge) != address(0x0)) {
+            liquidityGauge.notifySavingsChange(addr);
+        }
+    }
+
+    function transferTokens(address spender, address src, address dst, uint tokens) internal returns (uint) {
+        uint errorCode = super.transferTokens(spender, src, dst, tokens);
+        if (errorCode == uint(Error.NO_ERROR)) {
+            notifySavingsChange(src);
+            notifySavingsChange(dst);
+        }
+        return errorCode;
     }
 
     function seizeInternal(address seizerToken, address liquidator, address borrower, uint seizeTokens) internal returns (uint) {

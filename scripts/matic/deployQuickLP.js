@@ -5,7 +5,7 @@ const Unitroller = artifacts.require("Unitroller");
 const erc20Token = artifacts.require("EIP20Interface");
 const UniswapPair = artifacts.require("IUniswapV2Pair");
 
-const argv = require('yargs').option('token', {string:true}).argv;
+const argv = require('yargs').option('lptoken', {string:true}).argv;
 
 let reserveFactor = 0.4e18.toString();
 let lpPid;
@@ -13,17 +13,17 @@ let underlyingTokenAddr = "";
 let collateralFactor = 0.8e18.toString();
 let interestModelAddress = "0x195A4dFE3a8F877c5f0f7Ca7baA36B4301113130";
 
-let fTokenStorageAddr = "0xb0B34cb2D5C7Ef5B8f730d3D40300bfdBcCe731F";
+let fTokenStorageAddr = "0xA375D4fd4826121B2f2c8bEBa7B9257b305906EF";
 let poolAddr = "";
 
 module.exports = async function(callback) {
     try {
-        console.log(`argv> pool=${argv.pool}, lptoken=${argv.token}, collateralFactor=${argv.collateralFactor}`);
+        console.log(`argv> pool=${argv.pool}, lptoken=${argv.lptoken}, collateralFactor=${argv.collateralFactor}`);
         poolAddr = argv.pool
-        underlyingTokenAddr = argv.token
+        underlyingTokenAddr = argv.lptoken
         collateralFactor = argv.collateralFactor
 
-        const pairInstance = await UniswapPair.at(lpTokenAddr);
+        const pairInstance = await UniswapPair.at(underlyingTokenAddr);
         const token0 = await pairInstance.token0();
         const token1 = await pairInstance.token1();
 
@@ -60,8 +60,8 @@ module.exports = async function(callback) {
         await qsControllerInstance._setCollateralFactor(fTokenInstance.address, collateralFactor);
         console.log("Done to set collateral factor %s for %s %s", collateralFactor, fTokenSymbol, fTokenInstance.address);
 
-        await qsControllerInstance._setMintPaused(fTokenInstance.address, true)
-        console.log("MintPaused: ", await qsControllerInstance.mintGuardianPaused(fTokenInstance.address))
+        //await qsControllerInstance._setMintPaused(fTokenInstance.address, true)
+        //console.log("MintPaused: ", await qsControllerInstance.mintGuardianPaused(fTokenInstance.address))
         callback();
     } catch (e) {
         callback(e);

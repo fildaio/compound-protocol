@@ -269,10 +269,6 @@ module.exports = async function(deployer, network) {
         await deployer.deploy(Maximillion, sELA.address);
         addressFactory["Maximillion"] = Maximillion.address;
     }
-    if (network == "elaeth") {
-        let allSupportedMarkets = await proxiedQstroller.getAllMarkets();
-        console.log("allSupportedMarkets: ", allSupportedMarkets);
-    }
 
     if (network == "hecotest" || network == "heco") {
         await deployer.deploy(sELA, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda HT", "fHT", 18, admin);
@@ -287,40 +283,66 @@ module.exports = async function(deployer, network) {
     }
 
     if (network == "arbitrum" || network == "arbitrumtest") {
-        await deployer.deploy(QsPriceOracleV2);
+        blocksPerYear = 2102400
+        let wETH = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+        let ethPriceSource = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612";
+        if (network == "arbitrumtest") {
+            ethPriceSource = "0x5f0423B1a6935dc5596e7A24d98532b67A0AeFd8";
+            // Handle Wrapped Native
+            await deployer.deploy(MockWETH);
+            wETH = MockWETH.address;
+            console.log("wETH: ", wETH);
+        }
+        addressFactory["wETH"] = wETH;
+        await deployer.deploy(InterestModel, blocksPerYear, baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
+        addressFactory["InterestModel"] = InterestModel.address;
+        await deployer.deploy(ChainLinkPriceOracle, ethPriceSource);
         let proxiedQstroller = await Qstroller.at(Unitroller.address);
-        await proxiedQstroller._setPriceOracle(QsPriceOracleV2.address);
+        await proxiedQstroller._setPriceOracle(ChainLinkPriceOracle.address);
         console.log("Done to set price oracle.", await proxiedQstroller.oracle());
-        addressFactory["QsPriceOracleV2"] = QsPriceOracleV2.address;
-        await deployer.deploy(sELA, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda ETH", "fETH", 18, admin);
-        await proxiedQstroller._supportMarket(sELA.address);
-        console.log("Done to support market fETH: ", sELA.address);
-        let htCollateralFactor = 0.8e18.toString();
-        await proxiedQstroller._setCollateralFactor(sELA.address, htCollateralFactor);
-        console.log("Done to set collateral factor %s for fETH %s", htCollateralFactor, sELA.address);
-        addressFactory["fETH"] = sELA.address;
-        await deployer.deploy(Maximillion, sELA.address);
+        addressFactory["ChainLinkPriceOracle"] = ChainLinkPriceOracle.address;
+        await deployer.deploy(wrappedNativeDelegate);
+        await deployer.deploy(wrappedNativeDelegator, wETH, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda ETH", "fETH", 18, admin, wrappedNativeDelegate.address, "0x0");
+        const wrappedNativeInstance = await wrappedNativeDelegator.deployed();
+        await proxiedQstroller._supportMarket(wrappedNativeDelegator.address);
+        console.log("Done to support market fETH: ", wrappedNativeInstance.address);
+        let ethCollateralFactor = 0.65e18.toString();
+        await proxiedQstroller._setCollateralFactor(wrappedNativeInstance.address, ethCollateralFactor);
+        console.log("Done to set collateral factor %s for fBNB %s", ethCollateralFactor, wrappedNativeInstance.address);
+        addressFactory["fETH"] = wrappedNativeInstance.address;
+        await deployer.deploy(Maximillion, wrappedNativeInstance.address);
         addressFactory["Maximillion"] = Maximillion.address;
     }
 
     if (network == "bsctest" || network == "bsc") {
-        let bnbPriceSource = "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526";
-        if (network == "bsc") {
-            bnbPriceSource = "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE";
+        let wBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+        let bnbPriceSource = "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE";
+        if (network == "bsctest") {
+            bnbPriceSource = "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526";
+            // Handle Wrapped Native
+            await deployer.deploy(MockWETH);
+            wBNB = MockWETH.address;
+            console.log("wBNB: ", wBNB);
         }
+        addressFactory["wBNB"] = wBNB;
+        await deployer.deploy(InterestModel, blocksPerYear, baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
+        addressFactory["InterestModel"] = InterestModel.address;
         await deployer.deploy(ChainLinkPriceOracle, bnbPriceSource);
         let proxiedQstroller = await Qstroller.at(Unitroller.address);
         await proxiedQstroller._setPriceOracle(ChainLinkPriceOracle.address);
         console.log("Done to set price oracle.", await proxiedQstroller.oracle());
         addressFactory["ChainLinkPriceOracle"] = ChainLinkPriceOracle.address;
-        await deployer.deploy(sELA, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda BNB", "fBNB", 18, admin);
-        await proxiedQstroller._supportMarket(sELA.address);
-        console.log("Done to support market fBNB: ", sELA.address);
-        let htCollateralFactor = 0.8e18.toString();
-        await proxiedQstroller._setCollateralFactor(sELA.address, htCollateralFactor);
-        console.log("Done to set collateral factor %s for fBNB %s", htCollateralFactor, sELA.address);
-        addressFactory["fBNB"] = sELA.address;
-        await deployer.deploy(Maximillion, sELA.address);
+
+        await deployer.deploy(wrappedNativeDelegate);
+        await deployer.deploy(wrappedNativeDelegator, wBNB, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda BNB", "fBNB", 18, admin, wrappedNativeDelegate.address, "0x0");
+        const wrappedNativeInstance = await wrappedNativeDelegator.deployed();
+        await proxiedQstroller._supportMarket(wrappedNativeDelegator.address);
+        console.log("Done to support market fBNB: ", wrappedNativeInstance.address);
+        let bnbCollateralFactor = 0.65e18.toString();
+        await proxiedQstroller._setCollateralFactor(wrappedNativeInstance.address, bnbCollateralFactor);
+        console.log("Done to set collateral factor %s for fBNB %s", bnbCollateralFactor, wrappedNativeInstance.address);
+        addressFactory["fBNB"] = wrappedNativeInstance.address;
+        await deployer.deploy(Maximillion, wrappedNativeInstance.address);
         addressFactory["Maximillion"] = Maximillion.address;
     }
 
@@ -341,8 +363,9 @@ module.exports = async function(deployer, network) {
         await proxiedQstroller._setPriceOracle(ChainLinkPriceOracle.address);
         console.log("Done to set price oracle.", await proxiedQstroller.oracle());
         addressFactory["ChainLinkPriceOracle"] = ChainLinkPriceOracle.address;
+
         await deployer.deploy(wrappedNativeDelegate);
-        await deployer.deploy(wrappedNativeDelegator, wMatic, Unitroller.address, InterestModel.address, 0.02e18.toString(), "FilDA Matic", "fMatic", 18, admin, wrappedNativeDelegate.address, "0x0");
+        await deployer.deploy(wrappedNativeDelegator, wMatic, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda Matic", "fMatic", 18, admin, wrappedNativeDelegate.address, "0x0");
         const wrappedNativeInstance = await wrappedNativeDelegator.deployed();
         await proxiedQstroller._supportMarket(wrappedNativeDelegator.address);
         console.log("Done to support market fMatic: ", wrappedNativeInstance.address);
@@ -350,6 +373,37 @@ module.exports = async function(deployer, network) {
         await proxiedQstroller._setCollateralFactor(wrappedNativeInstance.address, maticCollateralFactor);
         console.log("Done to set collateral factor %s for fMatic %s", maticCollateralFactor, wrappedNativeInstance.address);
         addressFactory["fMatic"] = wrappedNativeInstance.address;
+        await deployer.deploy(Maximillion, wrappedNativeInstance.address);
+        addressFactory["Maximillion"] = Maximillion.address;
+    }
+
+    if (network == "IoTeXTest" || network == "IoTeX") {
+        // 12 * 60 * 24 * 365 (BlockTime: 5s)
+        blocksPerYear = 6307200;
+        let wIotx = "0xa00744882684c3e4747faefd68d283ea44099d03";
+        let iotxPriceSource = "0x267Ef702F3422cC55C617218a4fB84446F5Ec646";
+        if (network == "IoTeXTest") {
+            iotxPriceSource = "0xe7b1764da9c047be53ec980f7af46268912e31cd";
+            // Handle Wrapped Native
+            await deployer.deploy(MockWETH);
+            wIotx = MockWETH.address;
+            console.log("wIotx: ", wIotx);
+        }
+        await deployer.deploy(InterestModel, blocksPerYear, baseRatePerYear, multiplierPerYear, jumpMultiplierPerYear, kink);
+        await deployer.deploy(ChainLinkPriceOracle, iotxPriceSource);
+        let proxiedQstroller = await Qstroller.at(Unitroller.address);
+        await proxiedQstroller._setPriceOracle(ChainLinkPriceOracle.address);
+        console.log("Done to set price oracle.", await proxiedQstroller.oracle());
+        addressFactory["ChainLinkPriceOracle"] = ChainLinkPriceOracle.address;
+        await deployer.deploy(wrappedNativeDelegate);
+        await deployer.deploy(wrappedNativeDelegator, wIotx, Unitroller.address, InterestModel.address, 0.02e18.toString(), "Filda IOTX", "fIOTX", 18, admin, wrappedNativeDelegate.address, "0x0");
+        const wrappedNativeInstance = await wrappedNativeDelegator.deployed();
+        await proxiedQstroller._supportMarket(wrappedNativeDelegator.address);
+        console.log("Done to support market fIOTX: ", wrappedNativeInstance.address);
+        let iotxCollateralFactor = 0.5e18.toString();
+        await proxiedQstroller._setCollateralFactor(wrappedNativeInstance.address, iotxCollateralFactor);
+        console.log("Done to set collateral factor %s for fIOTX %s", iotxCollateralFactor, wrappedNativeInstance.address);
+        addressFactory["fIOTX"] = wrappedNativeInstance.address;
         await deployer.deploy(Maximillion, wrappedNativeInstance.address);
         addressFactory["Maximillion"] = Maximillion.address;
     }

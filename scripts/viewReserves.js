@@ -12,11 +12,20 @@ module.exports = async function(callback) {
             let cTokenName = await cTokenInstance.name();
             let totalReserves = await cTokenInstance.totalReserves() / Math.pow(10, 18);
             let reserveFactorMantissa = await cTokenInstance.reserveFactorMantissa() / Math.pow(10, 18);
-            if (cTokenName === "Filda HUSD" || cTokenName === "Filda pNEO") {
+            if (cTokenName === "Filda HUSD" || cTokenName === "Filda pNEO" || cTokenName === "Filda htHUSD") {
                 totalReserves = await cTokenInstance.totalReserves() / Math.pow(10, 8);
                 reserveFactorMantissa = await cTokenInstance.reserveFactorMantissa() / Math.pow(10, 18);
             }
-            if (totalReserves <= 0) continue;
+            if (cTokenName === "Filda ioUSDT" || cTokenName === "Filda ioUSDC" || cTokenName === "Filda ethUSDC") {
+                totalReserves = await cTokenInstance.totalReserves() / Math.pow(10, 6);
+                reserveFactorMantissa = await cTokenInstance.reserveFactorMantissa() / Math.pow(10, 18);
+            }
+
+            if (cTokenName === "Filda ioWBTC") {
+                totalReserves = await cTokenInstance.totalReserves() / Math.pow(10, 8);
+                reserveFactorMantissa = await cTokenInstance.reserveFactorMantissa() / Math.pow(10, 18);
+            }
+            //if (totalReserves <= 0) continue;
             console.log(`${cTokenName} totalReserves: ${totalReserves}, reserveFactorMantissa: ${reserveFactorMantissa}`)
         }
         callback();

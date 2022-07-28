@@ -12,14 +12,15 @@ module.exports = async function(callback) {
             let cTokenInstance = await CToken.at(market);
             let cTokenName = await cTokenInstance.name();
             let compSpeed = await proxiedQstroller.compSpeeds(market);
-            if (compSpeed <= 0) continue;
+            // if (compSpeed <= 0) continue;
             let interestRateModel = await cTokenInstance.interestRateModel();
             let interestRateModelInstance = await InterestModel.at(interestRateModel);
             let blocksPerYear = await interestRateModelInstance.blocksPerYear();
             let multiplierPerBlock = await interestRateModelInstance.multiplierPerBlock();
             let baseRatePerBlock = await interestRateModelInstance.baseRatePerBlock();
             let jumpMultiplierPerBlock = await interestRateModelInstance.jumpMultiplierPerBlock();
-            console.log(`${cTokenName} ${market} interestModel: ${interestRateModel} blocksPerYear: ${blocksPerYear} multiplierPerBlock: ${multiplierPerBlock} baseRatePerBlock: ${baseRatePerBlock} jumpMultiplierPerBlock: ${jumpMultiplierPerBlock}`);
+            let kink = await interestRateModelInstance.kink();
+            console.log(`${cTokenName} ${market} interestModel: ${interestRateModel} blocksPerYear: ${blocksPerYear} multiplierPerBlock: ${multiplierPerBlock} baseRatePerBlock: ${baseRatePerBlock} jumpMultiplierPerBlock: ${jumpMultiplierPerBlock} kink: ${kink}`);
         }
         callback();
     } catch (e) {
