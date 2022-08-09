@@ -171,7 +171,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
         CToken cToken = CToken(cTokenAddress);
         /* Get sender tokensHeld and amountOwed underlying from the cToken */
         (uint oErr, uint tokensHeld, uint amountOwed, ) = cToken.getAccountSnapshot(msg.sender);
-        require(oErr == 0, "exitMarket: getAccountSnapshot failed"); // semi-opaque error code
+        require(oErr == 0, "!exitMarket"); // semi-opaque error code
 
         /* Fail if the sender has a borrow balance */
         if (amountOwed != 0) {
@@ -277,7 +277,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
 
         // Require tokens is zero or amount is also zero
         if (redeemTokens == 0 && redeemAmount > 0) {
-            revert("redeemTokens zero");
+            revert("redeemTokens 0");
         }
     }
 
@@ -701,7 +701,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
 
     function _addMarketInternal(address cToken) internal {
         for (uint i = 0; i < allMarkets.length; i ++) {
-            require(allMarkets[i] != CToken(cToken), "market already added");
+            require(allMarkets[i] != CToken(cToken), "market");
         }
         allMarkets.push(CToken(cToken));
     }
@@ -742,26 +742,19 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
         return uint(Error.NO_ERROR);
     }
 
-    function _setMintPaused(CToken cToken, bool state) external returns (bool) {
+    function _setMintOrBorrowPaused(CToken cToken, bool mintState, bool borrowState) external returns (bool, bool) {
         require(markets[address(cToken)].isListed, "!listed");
-        require(msg.sender == pauseGuardian || msg.sender == admin, "!admin");
+        require(msg.sender == pauseGuardian || msg.sender == admin);
 
-        mintGuardianPaused[address(cToken)] = state;
-        emit ActionPaused(cToken, "Mint", state);
-        return state;
-    }
-
-    function _setBorrowPaused(CToken cToken, bool state) external returns (bool) {
-        require(markets[address(cToken)].isListed, "!listed");
-        require(msg.sender == pauseGuardian || msg.sender == admin, "!admin");
-
-        borrowGuardianPaused[address(cToken)] = state;
-        emit ActionPaused(cToken, "Borrow", state);
-        return state;
+        mintGuardianPaused[address(cToken)] = mintState;
+        borrowGuardianPaused[address(cToken)] = borrowState;
+        emit ActionPaused(cToken, "Mint", mintState);
+        emit ActionPaused(cToken, "Borrow", borrowState);
+        return (mintState, borrowState);
     }
 
     function _setTransferPaused(bool state) public returns (bool) {
-        require(msg.sender == pauseGuardian || msg.sender == admin, "!admin");
+        require(msg.sender == pauseGuardian || msg.sender == admin);
 
         transferGuardianPaused = state;
         emit ActionPaused("Transfer", state);
@@ -769,7 +762,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
     }
 
     function _setSeizePaused(bool state) external returns (bool) {
-        require(msg.sender == pauseGuardian || msg.sender == admin, "!admin");
+        require(msg.sender == pauseGuardian || msg.sender == admin);
 
         seizeGuardianPaused = state;
         emit ActionPaused("Seize", state);
@@ -777,7 +770,7 @@ contract Comptroller is ComptrollerV3Storage, ComptrollerInterface, ComptrollerE
     }
 
     function _become(Unitroller unitroller) public {
-        require(msg.sender == unitroller.admin(), "!admin");
+        require(msg.sender == unitroller.admin());
         require(unitroller._acceptImplementation() == 0, "!authorized");
     }
 

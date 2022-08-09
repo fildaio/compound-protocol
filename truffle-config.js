@@ -98,7 +98,7 @@ module.exports = {
       },
 
       elaeth: {
-          provider: () => new HDWalletProvider(mnemonic, `wss://escnode.filda.org`),
+          provider: () => new HDWalletProvider(mnemonic, `wss://api.elastos.io/eth-ws`),
           network_id: "20",   // This network is yours, in the cloud.
           timeoutBlocks: 200,
           confirmations: 2,

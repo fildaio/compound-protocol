@@ -911,6 +911,21 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "safetyGuardian",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "seizeGuardianPaused",
     "outputs": [
       {
@@ -1563,38 +1578,22 @@
       },
       {
         "internalType": "bool",
-        "name": "state",
+        "name": "mintState",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "borrowState",
         "type": "bool"
       }
     ],
-    "name": "_setMintPaused",
+    "name": "_setMintOrBorrowPaused",
     "outputs": [
       {
         "internalType": "bool",
         "name": "",
         "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "internalType": "contract CToken",
-        "name": "cToken",
-        "type": "address"
       },
-      {
-        "internalType": "bool",
-        "name": "state",
-        "type": "bool"
-      }
-    ],
-    "name": "_setBorrowPaused",
-    "outputs": [
       {
         "internalType": "bool",
         "name": "",

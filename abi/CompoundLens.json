@@ -801,6 +801,186 @@
     "type": "function"
   },
   {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "contract QsMdxLPDelegate",
+        "name": "lpCtoken",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "getLpRewardPending",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "mdxReward",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "compReward",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "lpCtoken",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8",
+        "name": "rewardTokenCount",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "getLpRewardPending",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "rewards",
+        "type": "uint256[]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "contract QsQuickDualLPDelegate",
+        "name": "lp",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "dQUICK",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "priceA",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "priceB",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "priceLp",
+        "type": "uint256"
+      }
+    ],
+    "name": "getQuickDualLpAPY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "apyA",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "apyB",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "contract QsQuickLPDelegate",
+        "name": "lp",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "dQUICK",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "priceLp",
+        "type": "uint256"
+      }
+    ],
+    "name": "getQuickLpAPY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "apy",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "contract QsGlideLPDelegate",
+        "name": "lp",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pid",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "priceLp",
+        "type": "uint256"
+      }
+    ],
+    "name": "getGlideLpAPR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "apr",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "constant": true,
     "inputs": [
       {

@@ -10,6 +10,7 @@ const Unitroller = artifacts.require("Unitroller");
 const CompoundLens = artifacts.require("CompoundLens");
 const QsConfig = artifacts.require("QsConfig");
 const Maximillion = artifacts.require("Maximillion");
+const CreditOracle = artifacts.require("CreditOracle");
 
 // Parameters
 const closeFactor = 0.5e18.toString();
@@ -24,10 +25,12 @@ module.exports = async function(deployer, network) {
     await deployer.deploy(Qstroller);
     await deployer.deploy(CompoundLens);
     await deployer.deploy(QsConfig, "0x0000000000000000000000000000000000000000");
+    await deployer.deploy(CreditOracle);
 
     addressFactory["Qstroller"] = Unitroller.address;
     addressFactory["QsConfig"] = QsConfig.address;
     addressFactory["CompoundLens"] = CompoundLens.address;
+    addressFactory["CreditOracle"] = CreditOracle.address;
 
     let unitrollerInstance = await Unitroller.deployed();
     let qstrollerInstance = await Qstroller.deployed();
@@ -49,6 +52,8 @@ module.exports = async function(deployer, network) {
 
     await proxiedQstroller._setQsConfig(QsConfig.address);
     console.log("Done to set system config.", await  proxiedQstroller.qsConfig());
+    await proxiedQstroller._setCreditOracle(CreditOracle.address);
+    console.log("Done to set credit oracle.", CreditOracle.address);
 
     await proxiedQstroller._setLiquidationIncentive(liquidationIncentive);
     console.log("Done to set liquidation incentive.");

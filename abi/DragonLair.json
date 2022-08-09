@@ -1,0 +1,23 @@
+[
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_dQuickAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "dQUICKForQUICK",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "quickAmount_",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

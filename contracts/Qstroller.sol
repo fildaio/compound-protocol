@@ -3,43 +3,25 @@ pragma solidity ^0.5.16;
 import "./compound/Comptroller.sol";
 import "./compound/EIP20Interface.sol";
 import "./QsConfig.sol";
+import "./ICreditOracle.sol";
 
 contract Qstroller is Comptroller {
     /// @notice Emitted when an admin delists a market
     event MarketDelisted(CToken cToken);
 
     QsConfig public qsConfig;
-
-//    /**
-//     * @notice Remove the market from the markets mapping
-//     * @param cToken The address of the market (token) to delist
-//     */
-//    function _delistMarket(CToken cToken) external {
-//        require(msg.sender == admin, "only admin may delist market");
-//
-//        require(markets[address(cToken)].isListed, "market not listed");
-//        require(cToken.totalSupply() == 0, "market not empty");
-//
-//        cToken.isCToken(); // Sanity check to make sure its really a CToken
-//
-//        delete markets[address(cToken)];
-//
-//        for (uint i = 0; i < allMarkets.length; i++) {
-//            if (allMarkets[i] == cToken) {
-//                allMarkets[i] = allMarkets[allMarkets.length - 1];
-//                delete allMarkets[allMarkets.length - 1];
-//                allMarkets.length--;
-//                break;
-//            }
-//        }
-//
-//        emit MarketDelisted(cToken);
-//    }
+    ICreditOracle public creditOracle;
 
     function _setQsConfig(QsConfig _qsConfig) public {
         require(msg.sender == admin);
 
         qsConfig = _qsConfig;
+    }
+
+    function _setCreditOracle(ICreditOracle _creditOracle) public {
+        require(msg.sender == admin);
+
+        creditOracle = _creditOracle;
     }
 
     /**
@@ -356,6 +338,16 @@ contract Qstroller is Comptroller {
             }
         }
 
+        if (address(creditOracle) != address(0x0)) {
+            uint creditCollateralRatio = creditOracle.getCreditCollateralRatio(account);
+            if (creditCollateralRatio > 0) {
+                (mErr, vars.sumCollateral) = mulScalarTruncateAddUInt(Exp({mantissa: creditCollateralRatio}), vars.sumCollateral, vars.sumCollateral);
+                if (mErr != MathError.NO_ERROR) {
+                    return (Error.MATH_ERROR, 0, 0);
+                }
+            }
+        }
+        
         // If credit limit is set, no need to consider collateral.
         if (qsConfig.getCreditLimit(account) > 0) {
             vars.sumCollateral = qsConfig.getCreditLimit(account);

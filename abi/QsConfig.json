@@ -150,6 +150,25 @@
       {
         "indexed": false,
         "internalType": "address",
+        "name": "oldLiquidityGauge",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newLiquidityGauage",
+        "type": "address"
+      }
+    ],
+    "name": "NewLiquidityGauge",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
         "name": "oldPendingSafetyGuardian",
         "type": "address"
       },
@@ -373,6 +392,21 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "liquidityGauge",
+    "outputs": [
+      {
+        "internalType": "contract ILiquidityGauge",
+        "name": "",
+        "type": "address"
       }
     ],
     "payable": false,
@@ -931,6 +965,21 @@
       }
     ],
     "name": "_setFlashLoanFeeRatio",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "contract ILiquidityGauge",
+        "name": "_liquidityGauge",
+        "type": "address"
+      }
+    ],
+    "name": "_setliquidityGauge",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
