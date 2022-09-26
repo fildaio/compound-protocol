@@ -326,6 +326,23 @@ contract CWrappedNativeDelegator is CTokenInterface, CErc20Storage, CDelegatorIn
         delegateAndReturn();
     }
 
+    /**
+     * @notice A public function to sweep accidental ERC-20 transfers to this contract. Tokens are sent to admin (timelock)
+     * @param token The address of the ERC-20 token to sweep
+     */
+    function sweepToken(EIP20NonStandardInterface token) external {
+        token;
+        delegateToImplementation(abi.encodeWithSignature("sweepToken(address)", token));
+    }
+
+    /**
+     * @notice Gulps excess contract cash to reserves
+     * @dev This function calculates excess ERC20 gained from a ERC20.transfer() call and adds the excess to reserves.
+     */
+    function gulp() external {
+        delegateToImplementation(abi.encodeWithSignature("gulp()"));
+    }
+
     /*** Admin Functions ***/
 
     /**

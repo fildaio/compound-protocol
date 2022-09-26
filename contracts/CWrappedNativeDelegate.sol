@@ -7,7 +7,7 @@ import "./CWrappedNative.sol";
  * @notice CTokens which wrap an EIP-20 underlying and are delegated to
  * @author Compound
  */
-contract CWrappedNativeDelegate is CWrappedNative, CDelegateInterface {
+contract CWrappedNativeDelegate is CWrappedNative {
     /**
      * @notice Construct an empty delegate
      */
@@ -26,12 +26,10 @@ contract CWrappedNativeDelegate is CWrappedNative, CDelegateInterface {
             implementation = address(0);
         }
 
-        require(msg.sender == admin, "only the admin may call _becomeImplementation");
-        
-        uint256 balance = address(this).balance;
-        if (balance > 0) {
-            IWETH(underlying).deposit.value(balance)();
-        }
+        require(msg.sender == admin, "!admin");
+
+        // Set internal cash when becoming implementation
+        internalCash = getCashOnChain();
     }
 
     /**
