@@ -10,52 +10,52 @@ const MultisigWallet = artifacts.require("MultisigWallet");
 const compSpeedsData = [
     {
         fToken: '0xF31AD464E61118c735E6d3C909e7a42DAA1575A3', // ELA
-        supplySpeed: '19051200000000000',
-        borrowSpeed: '2116800000000000'
+        supplySpeed: '15240960000000000',
+        borrowSpeed: '1693440000000000'
     },
     {
         fToken: '0x2b9f49361aB609bA7de1ec8cd6c970cDBb19cA66', // BTCB
-        supplySpeed: '1058400000000000',
-        borrowSpeed: '453600000000000'
+        supplySpeed: '846720000000000',
+        borrowSpeed: '362880000000000'
     },
     {
         fToken: '0x42C8A982f42b6069AD310e9910468B593247eace', // HUSD
-        supplySpeed: '33868800000000000',
-        borrowSpeed: '14515200000000000'
+        supplySpeed: '0',
+        borrowSpeed: '0'
     },
     {
         fToken: '0x21c376438dA428F730249aEe27F4454358429974', // BUSD
-        supplySpeed: '69854400000000000',
-        borrowSpeed: '29937600000000000'
+        supplySpeed: '69431040000000000',
+        borrowSpeed: '29756160000000000'
     },
     {
         fToken: '0xb064f6336F747b9ECDdAEadA9964E9d123BDB01B', // ETH
-        supplySpeed: '1058400000000000',
-        borrowSpeed: '453600000000000'
+        supplySpeed: '846720000000000',
+        borrowSpeed: '362880000000000'
     },
     {
         fToken: '0x7bC72d7780C2E811814e81FFac828d53f4CDe7c2', // USDC
-        supplySpeed: '71971200000000000',
-        borrowSpeed: '30844800000000000'
+        supplySpeed: '71124480000000000',
+        borrowSpeed: '30481920000000000'
     },
     {
         fToken: '0x105Fe752cAD216d2b4CAd5d42d8ec6966d6bcC95', // HUSD-USDC
-        supplySpeed: '7560000000000000',
+        supplySpeed: '0',
         borrowSpeed: '0'
     },
     {
         fToken: '0x7726E2698cb021A6066bC1357243AF3AFd146b83', // USDC-ELA
-        supplySpeed: '7560000000000000',
+        supplySpeed: '6048000000000000',
         borrowSpeed: '0'
     },
     {
         fToken: '0xAfBFCbF4D52030CD9AB582d29182E706c0Cc7879', // ETH-ELA
-        supplySpeed: '6048000000000000',
+        supplySpeed: '4838400000000000',
         borrowSpeed: '0'
     },
     {
         fToken: '0x2a5f3727Ea5b834D5b9846204D8Bc6b4849cA197', // BUSD-USDC
-        supplySpeed: '6048000000000000',
+        supplySpeed: '10886400000000000',
         borrowSpeed: '0'
     }
 ]

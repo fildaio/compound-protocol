@@ -13,21 +13,21 @@ module.exports = async function(callback) {
         let latestBlock = await web3.eth.getBlock("latest");
         let timestamp = parseInt(latestBlock.timestamp);
         console.log("timestamp: ", timestamp)
-        let eta = timestamp + parseInt(delay) + 600;
+        let eta = timestamp + parseInt(delay) + 7200;
         console.log("Eta: ", eta)
-        let market = "0xAeE67519049092AB91EFD033f7d350D62b9f166B";
+        let underlyingToken = "0x84abcb2832be606341a50128aeb1db43aa017449";
         let newInterestModel = "0x7f0123d4F618A22f9dDa7D3C5EB02566048493B8";
-        let cTokenInstance = await CErc20.at(market); 
-        let setInterestRateEncode = await cTokenInstance.contract.methods._setInterestRateModel(newInterestModel).encodeABI();
-        // let queueTxEncoded = await timelockInstance.contract.methods.queueTransaction(cTokenInstance.address, 0, '', setInterestRateEncode, eta).encodeABI();
-        // let execTxEncoded = await timelockInstance.contract.methods.executeTransaction(cTokenInstance.address, 0, '', setInterestRateEncode, eta).encodeABI();
+        let cTokenInstance = await CErc20.at(underlyingToken); 
+        let transferEncode = await cTokenInstance.contract.methods.transfer("0x65e37baa0ec0b146284c7856c14c8b9fd3a120a2", "15371061526632442000000").encodeABI();
+        let queueTxEncoded = await timelockInstance.contract.methods.queueTransaction(cTokenInstance.address, 0, '', transferEncode, eta).encodeABI();
+        let execTxEncoded = await timelockInstance.contract.methods.executeTransaction(cTokenInstance.address, 0, '', transferEncode, eta).encodeABI();
 
         let walletInstance = await MultisigWallet.at(multisigWallet);
-        // await walletInstance.submitTransaction(timelockAdress, 0, queueTxEncoded);
-        // console.log("Done to submit transaction to queueTxEncoded");
-        // await walletInstance.submitTransaction(timelockAdress, 0, execTxEncoded);
-        // console.log("Done to submit transaction to execTxEncoded");
-        await walletInstance.submitTransaction(cTokenInstance.address, 0, setInterestRateEncode);
+        await walletInstance.submitTransaction(timelockAdress, 0, queueTxEncoded);
+        console.log("Done to submit transaction to queueTxEncoded");
+        await walletInstance.submitTransaction(timelockAdress, 0, execTxEncoded);
+        console.log("Done to submit transaction to execTxEncoded");
+        // await walletInstance.submitTransaction(cTokenInstance.address, 0, setInterestRateEncode);
 
         // let unitrollerInstance = await Unitroller.deployed();
         // let encodedMethod = await unitrollerInstance.contract.methods._acceptAdmin().encodeABI();

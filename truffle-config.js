@@ -98,7 +98,7 @@ module.exports = {
       },
 
       elaeth: {
-          provider: () => new HDWalletProvider(mnemonic, `wss://escnode.filda.org`),
+          provider: () => new HDWalletProvider(mnemonic, `https://api.trinity-tech.io/esc`),
           network_id: "20",   // This network is yours, in the cloud.
           timeoutBlocks: 200,
           confirmations: 2,
@@ -140,7 +140,8 @@ module.exports = {
       },
 
       heco: {
-          provider: () => new HDWalletProvider(mnemonic, `https://heconode.ifoobar.com`),
+          // provider: () => new HDWalletProvider(mnemonic, `https://heconode.ifoobar.com`),
+          provider: () => new HDWalletProvider(mnemonic, `https://rpc.ankr.com/heco/90a7bf353c5a5a8f00d751c6e6814b1ba7887559556f30f6f1b424ff76425d56`),
           network_id: "128",   // This network is yours, in the cloud.
           timeoutBlocks: 200,
           confirmations: 2,
@@ -234,8 +235,10 @@ module.exports = {
         websockets: false
       },
       IoTeX: {
-        // provider: () => new HDWalletProvider(mnemonic, `https://babel-api.mainnet.iotex.io`),
-        provider: () => new HDWalletProvider(mnemonic, `wss://babel-api.mainnet.iotex.io`),
+        // provider: () => new HDWalletProvider(mnemonic, `https://babel-api.mainnet.iotex.one`),
+        provider: () => new HDWalletProvider(mnemonic, `https://babel-api.mainnet.iotex.io`),
+        // provider: () => new HDWalletProvider(mnemonic, `https://rpc.ankr.com/iotex`),
+        // provider: () => new HDWalletProvider(mnemonic, `wss://babel-api.mainnet.iotex.io`),
         // provider: () => new HDWalletProvider(mnemonic, `https://iotexnode.filda.io`),
         network_id: "4689",
         chain_id: "4689",
@@ -284,6 +287,54 @@ module.exports = {
         skipDryRun: false,
         networkCheckTimeout: 600000000,
         websockets: true
+      },
+      bttcTest: {
+        provider: () => new HDWalletProvider(mnemonic, `https://pre-rpc.bt.io/`),
+        network_id: "1029",
+        chain_id: "1029",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 15000000000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: false
+      },
+      bttc: {
+        provider: () => new HDWalletProvider(mnemonic, `https://bttc.trongrid.io`),
+        network_id: "199",
+        chain_id: "199",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 300000000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: false
+      },
+      kavaTest: {
+        provider: () => new HDWalletProvider(mnemonic, `https://evm.testnet.kava.io`),
+        network_id: "2221",
+        chain_id: "2221",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 1000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: false
+      },
+      kava: {
+        provider: () => new HDWalletProvider(mnemonic, `https://evm.kava.io`),
+        network_id: "2222",
+        chain_id: "2222",
+        timeoutBlocks: 60,
+        //confirmations: 2,
+        gas: 8000000,
+        gasPrice: 1000000000,
+        skipDryRun: false,
+        networkCheckTimeout: 600000000,
+        websockets: false
       },
   },
   plugins: ["truffle-contract-size"],

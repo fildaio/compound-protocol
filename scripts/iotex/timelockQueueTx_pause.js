@@ -13,21 +13,25 @@ module.exports = async function(callback) {
         let latestBlock = await web3.eth.getBlock("latest");
         let timestamp = parseInt(latestBlock.timestamp);
         console.log("timestamp: ", timestamp)
-        let eta = timestamp + parseInt(delay) + 600;
+        let eta = timestamp + parseInt(delay) + 1800;
         console.log("Eta: ", eta)
-        let market = "0xAeE67519049092AB91EFD033f7d350D62b9f166B";
-        let newInterestModel = "0x7f0123d4F618A22f9dDa7D3C5EB02566048493B8";
-        let cTokenInstance = await CErc20.at(market); 
-        let setInterestRateEncode = await cTokenInstance.contract.methods._setInterestRateModel(newInterestModel).encodeABI();
-        // let queueTxEncoded = await timelockInstance.contract.methods.queueTransaction(cTokenInstance.address, 0, '', setInterestRateEncode, eta).encodeABI();
-        // let execTxEncoded = await timelockInstance.contract.methods.executeTransaction(cTokenInstance.address, 0, '', setInterestRateEncode, eta).encodeABI();
+        let unitrollerInstance = await Unitroller.deployed();
+        let qsControllerInstance = await Qstroller.at(unitrollerInstance.address);
+        let fTokenAddress = "0xcA7D7F202894e851e495beBCD2A62E0898dD1814";
+        let collateralFactor = "850000000000000000";
+        let setCollateralFactorEncode = await qsControllerInstance.contract.methods._setCollateralFactor(fTokenAddress, collateralFactor).encodeABI();
+        console.log("setCollateralFactorEncode: ", setCollateralFactorEncode)
+        let setBorrowPausedEncode = await qsControllerInstance.contract.methods._setBorrowPaused(fTokenAddress, false).encodeABI();
+        console.log("setBorrowPausedEncode: ", setBorrowPausedEncode)
+        let queueTxEncoded = await timelockInstance.contract.methods.queueTransaction(unitrollerInstance.address, 0, '', setBorrowPausedEncode, eta).encodeABI();
+        let execTxEncoded = await timelockInstance.contract.methods.executeTransaction(unitrollerInstance.address, 0, '', setBorrowPausedEncode, eta).encodeABI();
 
         let walletInstance = await MultisigWallet.at(multisigWallet);
-        // await walletInstance.submitTransaction(timelockAdress, 0, queueTxEncoded);
-        // console.log("Done to submit transaction to queueTxEncoded");
-        // await walletInstance.submitTransaction(timelockAdress, 0, execTxEncoded);
-        // console.log("Done to submit transaction to execTxEncoded");
-        await walletInstance.submitTransaction(cTokenInstance.address, 0, setInterestRateEncode);
+        await walletInstance.submitTransaction(timelockAdress, 0, queueTxEncoded);
+        console.log("Done to submit transaction to queueTxEncoded");
+        await walletInstance.submitTransaction(timelockAdress, 0, execTxEncoded);
+        console.log("Done to submit transaction to execTxEncoded");
+        // await walletInstance.submitTransaction(cTokenInstance.address, 0, setInterestRateEncode);
 
         // let unitrollerInstance = await Unitroller.deployed();
         // let encodedMethod = await unitrollerInstance.contract.methods._acceptAdmin().encodeABI();
