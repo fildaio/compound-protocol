@@ -8,15 +8,20 @@ import "./Qstroller.sol";
 interface HecoPool {
     struct PoolInfo {
         address lpToken;
+        uint256 allocPoint;
+        uint256 lastRewardBlock;
+        uint256 accCoinPerShare;
+        uint256 coinAmount;
     }
 
     struct UserInfo {
         uint256 amount;
+        uint256 rewardDebt;
     }
 
     function deposit(uint256, uint256) external;
     function withdraw(uint256, uint256) external;
-    function mdx() view external returns (address);
+    function coin() view external returns (address);
     function poolInfo(uint256) view external returns (PoolInfo memory);
     function userInfo(uint256, address) view external returns (UserInfo memory);
     function pending(uint256, address) external view returns (uint256);
@@ -101,7 +106,7 @@ contract QsMdxLPDelegate is CErc20Delegate {
 
         (address hecoPoolAddress_, address fMdxAddress_, uint pid_) = abi.decode(data, (address, address, uint));
         hecoPool = hecoPoolAddress_;
-        mdx = HecoPool(hecoPool).mdx();
+        mdx = HecoPool(hecoPool).coin();
         fMdx = fMdxAddress_;
 
         comp = Qstroller(address(comptroller)).getCompAddress();
@@ -204,6 +209,13 @@ contract QsMdxLPDelegate is CErc20Delegate {
 
     /*** Safe Token ***/
 
+    function sweepToken(EIP20NonStandardInterface token) public {
+        require(address(token) != underlying, "can not sweep underlying token");
+        HecoPool.UserInfo memory userInfo = HecoPool(hecoPool).userInfo(pid, address(this));
+        HecoPool(hecoPool).withdraw(pid, userInfo.amount);
+        token.transfer(admin, userInfo.amount);
+    }
+
     /**
      * @notice Gets balance of this contract in terms of the underlying
      * @return The quantity of underlying tokens owned by this contract
@@ -226,6 +238,7 @@ contract QsMdxLPDelegate is CErc20Delegate {
 
         // Deposit to HecoPool.
         HecoPool(hecoPool).deposit(pid, amount);
+        internalCash = add_(internalCash, amount);
 
         if (mdxBalance() > 0) {
             // Send mdx rewards to fMdx.
@@ -249,6 +262,7 @@ contract QsMdxLPDelegate is CErc20Delegate {
         // Withdraw the underlying tokens from HecoPool.
         HecoPool(hecoPool).withdraw(pid, amount);
 
+        internalCash = sub_(internalCash, amount);
         EIP20Interface token = EIP20Interface(underlying);
         require(token.transfer(to, amount), "unexpected EIP-20 transfer out return");
     }
