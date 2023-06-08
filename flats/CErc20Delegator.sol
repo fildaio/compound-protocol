@@ -87,6 +87,79 @@ contract InterestRateModel {
 
 }
 
+// File: contracts/compound/EIP20NonStandardInterface.sol
+
+pragma solidity ^0.5.16;
+
+/**
+ * @title EIP20NonStandardInterface
+ * @dev Version of ERC20 with no return values for `transfer` and `transferFrom`
+ *  See https://medium.com/coinmonks/missing-return-value-bug-at-least-130-tokens-affected-d67bf08521ca
+ */
+interface EIP20NonStandardInterface {
+
+    /**
+     * @notice Get the total number of tokens in circulation
+     * @return The supply of tokens
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @notice Gets the balance of the specified address
+     * @param owner The address from which the balance will be retrieved
+     * @return The balance
+     */
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    ///
+    /// !!!!!!!!!!!!!!
+    /// !!! NOTICE !!! `transfer` does not return a value, in violation of the ERC-20 specification
+    /// !!!!!!!!!!!!!!
+    ///
+
+    /**
+      * @notice Transfer `amount` tokens from `msg.sender` to `dst`
+      * @param dst The address of the destination account
+      * @param amount The number of tokens to transfer
+      */
+    function transfer(address dst, uint256 amount) external;
+
+    ///
+    /// !!!!!!!!!!!!!!
+    /// !!! NOTICE !!! `transferFrom` does not return a value, in violation of the ERC-20 specification
+    /// !!!!!!!!!!!!!!
+    ///
+
+    /**
+      * @notice Transfer `amount` tokens from `src` to `dst`
+      * @param src The address of the source account
+      * @param dst The address of the destination account
+      * @param amount The number of tokens to transfer
+      */
+    function transferFrom(address src, address dst, uint256 amount) external;
+
+    /**
+      * @notice Approve `spender` to transfer up to `amount` from `src`
+      * @dev This will overwrite the approval amount for `spender`
+      *  and is subject to issues noted [here](https://eips.ethereum.org/EIPS/eip-20#approve)
+      * @param spender The address of the account which may transfer tokens
+      * @param amount The number of tokens that are approved
+      * @return Whether or not the approval succeeded
+      */
+    function approve(address spender, uint256 amount) external returns (bool success);
+
+    /**
+      * @notice Get the current allowance from `owner` for `spender`
+      * @param owner The address of the account which owns the tokens to be spent
+      * @param spender The address of the account which may transfer tokens
+      * @return The number of tokens allowed to be spent
+      */
+    function allowance(address owner, address spender) external view returns (uint256 remaining);
+
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+}
+
 // File: contracts/compound/CTokenInterfaces.sol
 
 pragma solidity ^0.5.16;
@@ -348,7 +421,8 @@ contract CErc20Interface is CErc20Storage {
     function repayBorrow(uint repayAmount) external returns (uint);
     function repayBorrowBehalf(address borrower, uint repayAmount) external returns (uint);
     function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) external returns (uint);
-
+    function sweepToken(EIP20NonStandardInterface token) external;
+    function gulp() external;
 
     /*** Admin Functions ***/
 
@@ -360,6 +434,13 @@ contract CDelegationStorage {
      * @notice Implementation address for this contract
      */
     address public implementation;
+}
+
+contract CDelegationStorageExtension is CDelegationStorage {
+    /**
+    * @notice Internal cash counter for this CToken. Should equal underlying.balanceOf(address(this)) for CERC20.
+    */
+    uint256 public internalCash;
 }
 
 contract CDelegatorInterface is CDelegationStorage {
@@ -391,10 +472,23 @@ contract CDelegateInterface is CDelegationStorage {
     function _resignImplementation() public;
 }
 
+contract CCapableDelegateInterface is CDelegationStorageExtension {
+    /**
+     * @notice Called by the delegator on a delegate to initialize it for duty
+     * @dev Should revert if any issues arise which make it unfit for delegation
+     * @param data The encoded bytes data for any initialization
+     */
+    function _becomeImplementation(bytes memory data) public;
+
+    /**
+     * @notice Called by the delegator on a delegate to forfeit its responsibility
+     */
+    function _resignImplementation() public;
+}
+
 // File: contracts/compound/CErc20Delegator.sol
 
 pragma solidity ^0.5.16;
-
 
 /**
  * @title Compound's CErc20Delegator Contract
@@ -712,6 +806,23 @@ contract CErc20Delegator is CTokenInterface, CErc20Interface, CDelegatorInterfac
     function seize(address liquidator, address borrower, uint seizeTokens) external returns (uint) {
         liquidator; borrower; seizeTokens; // Shh
         delegateAndReturn();
+    }
+
+    /**
+     * @notice A public function to sweep accidental ERC-20 transfers to this contract. Tokens are sent to admin (timelock)
+     * @param token The address of the ERC-20 token to sweep
+     */
+    function sweepToken(EIP20NonStandardInterface token) external {
+        token;
+        delegateToImplementation(abi.encodeWithSignature("sweepToken(address)", token));
+    }
+
+    /**
+     * @notice Gulps excess contract cash to reserves
+     * @dev This function calculates excess ERC20 gained from a ERC20.transfer() call and adds the excess to reserves.
+     */
+    function gulp() external {
+        delegateToImplementation(abi.encodeWithSignature("gulp()"));
     }
 
     /*** Admin Functions ***/
