@@ -36,6 +36,31 @@ contract Qstroller is Comptroller {
        emit MarketDelisted(cToken);
    }
 
+    /**
+     * @notice Returns the assets an account has entered
+     * @param account The address of the account to pull assets for
+     * @return A dynamic list with the assets the account has entered
+     */
+    function getAssetsIn(address account) external view returns (CToken[] memory) {
+        CToken[] memory assetsIn = accountAssets[account];
+        uint len = assetsIn.length;
+        uint validAssetsSize = 0;
+        uint validIndex = 0;
+        for (uint i = 0; i < len; i++) {
+            if (markets[address(assetsIn[i])].isListed) {
+                validAssetsSize++;
+            }
+        }
+        CToken[] memory validAssetsIn = new CToken[](validAssetsSize);
+        for (uint i = 0; i < len; i++) {
+            if (markets[address(assetsIn[i])].isListed) {
+                validAssetsIn[validIndex] = assetsIn[i];
+                validIndex += 1;
+            }
+        }
+        return validAssetsIn;
+    }
+
     function _setQsConfig(QsConfig _qsConfig) public {
         require(msg.sender == admin);
 
@@ -295,7 +320,7 @@ contract Qstroller is Comptroller {
         CToken[] memory assets = accountAssets[account];
         for (uint i = 0; i < assets.length; i++) {
             CToken asset = assets[i];
-
+            if (!markets[address(asset)].isListed) continue;
             // Read the balances and exchange rate from the cToken
             (oErr, vars.cTokenBalance, vars.borrowBalance, vars.exchangeRateMantissa) = asset.getAccountSnapshot(account);
             if (oErr != 0) { // semi-opaque error code, we assume NO_ERROR == 0 is invariant between upgrades
@@ -420,6 +445,7 @@ contract Qstroller is Comptroller {
     }
 
     function redeemVerify(address cToken, address redeemer, uint redeemAmount, uint redeemTokens) external {
+        cToken;redeemAmount;redeemTokens;
        require(!qsConfig.isBlocked(redeemer), "b");
     }
 
