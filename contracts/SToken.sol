@@ -34,9 +34,15 @@ contract SToken is CToken {
 
     function notifySavingsChange(address addr) internal {
         QsConfig qsConfig = Qstroller(address(comptroller)).qsConfig();
-        ILiquidityGauge liquidityGauge = qsConfig.liquidityGauge();
-        if (address(liquidityGauge) != address(0x0)) {
-            liquidityGauge.notifySavingsChange(addr);
+        (bool success, bytes memory result) = address(qsConfig).call(abi.encodeWithSignature("liquidityGauge()"));
+        if (success) {
+            address liquidityGaugeAddress;
+            assembly {
+                liquidityGaugeAddress := mload(add(result, 20))
+            }
+            if (liquidityGaugeAddress != address(0x0)) {
+                ILiquidityGauge(liquidityGaugeAddress).notifySavingsChange(addr);
+            }
         }
     }
 
