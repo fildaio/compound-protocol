@@ -234,6 +234,5 @@ contract CWrappedNative is SToken, CErc20Storage, CCapableDelegateInterface {
     }
 
     function() external payable {
-        require(msg.sender == underlying, "!wrapped native");
     }
 }
