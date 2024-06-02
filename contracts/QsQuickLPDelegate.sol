@@ -138,6 +138,10 @@ contract QsQuickLPDelegate is CErc20Delegate {
         rewardsFToken[token] = ftoken;
     }
 
+    function getRewardTokenCount() external view returns (uint) {
+        return rewardsTokens.length;
+    }
+
     /*** CErc20 Overrides ***/
     /**
      * lp token does not borrow.
